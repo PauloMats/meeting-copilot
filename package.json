@@ -1,0 +1,32 @@
+{
+  "name": "meeting-copilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Privacy-first desktop AI copilot for technical meetings",
+  "packageManager": "pnpm@10.12.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:api": "pnpm --filter @meeting-copilot/api dev",
+    "dev:desktop": "pnpm --filter @meeting-copilot/desktop dev",
+    "format": "prettier --write .",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:generate": "pnpm --filter @meeting-copilot/database generate",
+    "db:migrate": "pnpm --filter @meeting-copilot/database migrate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.34.0"
+  }
+}

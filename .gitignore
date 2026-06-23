@@ -1,0 +1,13 @@
+node_modules/
+.turbo/
+dist/
+out/
+coverage/
+.env
+.env.local
+*.log
+*.db
+*.sqlite
+.DS_Store
+Thumbs.db
+apps/desktop/release/

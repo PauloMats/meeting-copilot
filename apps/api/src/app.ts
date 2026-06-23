@@ -171,6 +171,12 @@ export async function buildApp(
     if (error instanceof z.ZodError) {
       return reply.code(400).send({ message: "Invalid request", details: error.flatten() });
     }
+    if (error instanceof Error) {
+      const statusCode = "statusCode" in error ? Number(error.statusCode) : Number.NaN;
+      if (Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 500) {
+        return reply.code(statusCode).send({ message: error.message });
+      }
+    }
     app.log.error(error);
     return reply.code(500).send({ message: "Internal server error" });
   });

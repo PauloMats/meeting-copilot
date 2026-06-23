@@ -26,4 +26,16 @@ describe("api", () => {
     expect(response.statusCode).toBe(503);
     await app.close();
   });
+
+  it("preserves client error status codes", async () => {
+    const app = await buildApp(loadConfig({ NODE_ENV: "test", LOG_LEVEL: "silent" }));
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/context-profiles",
+      payload: {}
+    });
+
+    expect(response.statusCode).toBe(400);
+    await app.close();
+  });
 });

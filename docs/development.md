@@ -20,6 +20,14 @@ pnpm db:migrate
 pnpm dev:api
 ```
 
+If Docker Desktop is running but its WSL integration is disabled, install the repository wrapper:
+
+```bash
+ln -sfn "$PWD/scripts/docker-wsl" "$HOME/.local/bin/docker"
+rehash
+docker compose up -d postgres
+```
+
 The API listens on `127.0.0.1:3333`. Configure `OPENAI_API_KEY` before transcription or answer
 generation.
 

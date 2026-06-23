@@ -108,8 +108,8 @@ export class RealtimeTranscriptionService {
       return;
     }
     if (event.type === "conversation.item.input_audio_transcription.completed") {
-      this.events.final({ itemId: event.item_id, transcript: event.transcript });
       this.events.state("ready_to_send");
+      this.events.final({ itemId: event.item_id, transcript: event.transcript });
       this.socket?.close(1000, "turn complete");
       return;
     }

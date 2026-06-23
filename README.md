@@ -49,16 +49,22 @@ pnpm db:migrate
 pnpm dev:api
 ```
 
-In a second WSL terminal:
+In a second WSL terminal, WSLg can be used for UI-only development:
 
 ```bash
 cd /home/paulomats/code/pessoal/meeting-copilot
 pnpm dev:desktop
 ```
 
-Electron launched inside WSL uses Linux capture semantics. For the intended Windows desktop audio
-loopback path, package/run the Electron app on Windows while keeping the API and PostgreSQL in WSL.
-See [docs/development.md](docs/development.md).
+For the first real audio test, run Electron from a native Windows checkout:
+
+```powershell
+.\scripts\run-windows-desktop.ps1
+```
+
+Electron launched inside WSL uses Linux capture semantics. The Windows checkout is required for
+desktop audio loopback; the API and PostgreSQL can remain in WSL/Docker Desktop. See
+[docs/development.md](docs/development.md).
 
 ## Validation
 

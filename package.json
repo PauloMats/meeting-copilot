@@ -12,6 +12,7 @@
     "dev": "turbo dev",
     "dev:api": "pnpm --filter @meeting-copilot/api dev",
     "dev:desktop": "pnpm --filter @meeting-copilot/desktop dev",
+    "dev:desktop:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-windows-desktop.ps1",
     "format": "prettier --write .",
     "lint": "turbo lint",
     "test": "turbo test",

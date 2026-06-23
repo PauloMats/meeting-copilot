@@ -6,6 +6,7 @@ import {
   type DesktopSource,
   RealtimeTokenRequestSchema
 } from "@meeting-copilot/contracts";
+import { config as loadEnvironment } from "dotenv";
 import {
   app,
   BrowserWindow,
@@ -14,11 +15,17 @@ import {
   session,
   type DesktopCapturerSource
 } from "electron";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { ApiClient } from "./services/api-client.js";
 import { HotkeyService } from "./services/hotkey-service.js";
 import { RealtimeTranscriptionService } from "./services/realtime-transcription-service.js";
 import { SettingsService } from "./services/settings-service.js";
+
+loadEnvironment({
+  path:
+    process.env.MEETING_COPILOT_ENV_FILE ??
+    resolve(app.getAppPath(), process.env.NODE_ENV === "production" ? ".env" : "../../.env")
+});
 
 let mainWindow: BrowserWindow | null = null;
 let selectedDesktopSourceId: string | null = null;

@@ -1,6 +1,11 @@
-import "dotenv/config";
+import { config as loadEnvironment } from "dotenv";
+import { resolve } from "node:path";
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
+
+loadEnvironment({
+  path: process.env.MEETING_COPILOT_ENV_FILE ?? resolve(import.meta.dirname, "../../../.env")
+});
 
 const config = loadConfig();
 const app = await buildApp(config);

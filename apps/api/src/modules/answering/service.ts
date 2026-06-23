@@ -39,6 +39,7 @@ export class AnswerService {
     const response = await this.openai.responses.parse({
       model: this.model,
       store: false,
+      reasoning: { effort: "low" },
       input: [
         {
           role: "system",

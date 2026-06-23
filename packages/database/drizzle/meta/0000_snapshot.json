@@ -93,12 +93,8 @@
           "name": "answers_turn_id_meeting_turns_id_fk",
           "tableFrom": "answers",
           "tableTo": "meeting_turns",
-          "columnsFrom": [
-            "turn_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["turn_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -187,12 +183,8 @@
           "name": "audit_events_user_id_users_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -284,12 +276,8 @@
           "name": "context_profiles_user_id_users_id_fk",
           "tableFrom": "context_profiles",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -404,12 +392,8 @@
           "name": "document_chunks_document_id_documents_id_fk",
           "tableFrom": "document_chunks",
           "tableTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -502,12 +486,8 @@
           "name": "documents_user_id_users_id_fk",
           "tableFrom": "documents",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -515,12 +495,8 @@
           "name": "documents_context_profile_id_context_profiles_id_fk",
           "tableFrom": "documents",
           "tableTo": "context_profiles",
-          "columnsFrom": [
-            "context_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["context_profile_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -611,12 +587,8 @@
           "name": "glossary_terms_user_id_users_id_fk",
           "tableFrom": "glossary_terms",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -696,12 +668,8 @@
           "name": "meeting_sessions_user_id_users_id_fk",
           "tableFrom": "meeting_sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -709,12 +677,8 @@
           "name": "meeting_sessions_context_profile_id_context_profiles_id_fk",
           "tableFrom": "meeting_sessions",
           "tableTo": "context_profiles",
-          "columnsFrom": [
-            "context_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["context_profile_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -818,12 +782,8 @@
           "name": "meeting_turns_session_id_meeting_sessions_id_fk",
           "tableFrom": "meeting_turns",
           "tableTo": "meeting_sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -941,12 +901,8 @@
           "name": "settings_user_id_users_id_fk",
           "tableFrom": "settings",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1008,12 +964,8 @@
           "name": "transcripts_normalized_turn_id_meeting_turns_id_fk",
           "tableFrom": "transcripts_normalized",
           "tableTo": "meeting_turns",
-          "columnsFrom": [
-            "turn_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["turn_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1081,12 +1033,8 @@
           "name": "transcripts_raw_turn_id_meeting_turns_id_fk",
           "tableFrom": "transcripts_raw",
           "tableTo": "meeting_turns",
-          "columnsFrom": [
-            "turn_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["turn_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1164,42 +1112,22 @@
     "public.confidence": {
       "name": "confidence",
       "schema": "public",
-      "values": [
-        "high",
-        "medium",
-        "low"
-      ]
+      "values": ["high", "medium", "low"]
     },
     "public.document_status": {
       "name": "document_status",
       "schema": "public",
-      "values": [
-        "uploaded",
-        "indexing",
-        "ready",
-        "failed"
-      ]
+      "values": ["uploaded", "indexing", "ready", "failed"]
     },
     "public.glossary_kind": {
       "name": "glossary_kind",
       "schema": "public",
-      "values": [
-        "acronym",
-        "project",
-        "vendor",
-        "codeword",
-        "synonym"
-      ]
+      "values": ["acronym", "project", "vendor", "codeword", "synonym"]
     },
     "public.turn_status": {
       "name": "turn_status",
       "schema": "public",
-      "values": [
-        "streaming",
-        "final",
-        "cancelled",
-        "failed"
-      ]
+      "values": ["streaming", "final", "cancelled", "failed"]
     }
   },
   "schemas": {},

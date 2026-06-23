@@ -1,10 +1,5 @@
 import type { ContextProfile, GlossaryTerm } from "@meeting-copilot/contracts";
-import {
-  contextProfiles,
-  glossaryTerms,
-  users,
-  type Database
-} from "@meeting-copilot/database";
+import { contextProfiles, glossaryTerms, users, type Database } from "@meeting-copilot/database";
 import { eq } from "drizzle-orm";
 import type { ContextRepository } from "./memory-repository.js";
 

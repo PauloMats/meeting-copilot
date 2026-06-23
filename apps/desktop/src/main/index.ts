@@ -12,6 +12,7 @@ import {
   BrowserWindow,
   desktopCapturer,
   ipcMain,
+  screen,
   session,
   type DesktopCapturerSource
 } from "electron";
@@ -23,6 +24,7 @@ import { SettingsService } from "./services/settings-service.js";
 
 let mainWindow: BrowserWindow | null = null;
 let selectedDesktopSourceId: string | null = null;
+let normalWindowBounds: Electron.Rectangle | null = null;
 
 function send(channel: string, payload?: unknown): void {
   const window = mainWindow;
@@ -76,9 +78,43 @@ function registerIpc(
     apiClient.generateAnswer(AnswerRequestSchema.parse(request))
   );
   ipcMain.handle(IPC_CHANNELS.overlaySet, (_event, enabled: boolean) => {
-    mainWindow?.setAlwaysOnTop(enabled, "floating");
-    if (mainWindow) mainWindow.setSkipTaskbar(enabled);
+    setOverlayMode(enabled);
   });
+}
+
+function setOverlayMode(enabled: boolean): void {
+  const window = mainWindow;
+  if (!window || window.isDestroyed()) return;
+
+  if (enabled) {
+    normalWindowBounds = window.getBounds();
+    const { workArea } = screen.getPrimaryDisplay();
+    const width = Math.min(760, workArea.width - 48);
+    const height = Math.min(560, workArea.height - 48);
+    window.setBounds({
+      width,
+      height,
+      x: workArea.x + workArea.width - width - 24,
+      y: workArea.y + 24
+    });
+    window.setAlwaysOnTop(true, "screen-saver");
+    window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    window.setSkipTaskbar(true);
+    window.setMenuBarVisibility(false);
+    window.setAutoHideMenuBar(true);
+    window.setOpacity(0.94);
+    window.setBackgroundColor("#00000000");
+    return;
+  }
+
+  window.setAlwaysOnTop(false);
+  window.setVisibleOnAllWorkspaces(false);
+  window.setSkipTaskbar(false);
+  window.setMenuBarVisibility(true);
+  window.setAutoHideMenuBar(false);
+  window.setOpacity(1);
+  window.setBackgroundColor("#090d14");
+  if (normalWindowBounds) window.setBounds(normalWindowBounds);
 }
 
 async function createWindow(): Promise<void> {
@@ -88,7 +124,8 @@ async function createWindow(): Promise<void> {
     minWidth: 820,
     minHeight: 600,
     show: true,
-    backgroundColor: "#090d14",
+    transparent: true,
+    backgroundColor: "#00000000",
     title: "Meeting Copilot",
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
@@ -179,7 +216,9 @@ async function bootstrap(): Promise<void> {
       .catch(() => callback({}));
   });
   await createWindow();
-  hotkey.start(settingsService.get().hotkey);
+  const initialSettings = settingsService.get();
+  setOverlayMode(initialSettings.overlayEnabled);
+  hotkey.start(initialSettings.hotkey);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();

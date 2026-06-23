@@ -13,6 +13,12 @@
   font-synthesis: none;
 }
 
+html,
+body,
+#root {
+  background: transparent;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -49,6 +55,11 @@ footer {
   justify-content: space-between;
   gap: 32px;
   margin-bottom: 24px;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .eyebrow {
   color: #64d8c5;
@@ -208,6 +219,10 @@ button.secondary {
   color: #c3cede;
   background: #202b3b;
 }
+.compact-button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
 .error-message {
   color: #ff8d9d;
   font-size: 13px;
@@ -305,6 +320,134 @@ footer span::before {
   content: "✓";
   margin-right: 6px;
   color: #489b8d;
+}
+
+.overlay-shell {
+  min-height: 100vh;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(84, 217, 192, 0.17), transparent 34%),
+    rgba(4, 8, 14, 0.16);
+  backdrop-filter: blur(2px);
+}
+
+.overlay-shell .topbar {
+  margin-bottom: 10px;
+  gap: 14px;
+}
+
+.overlay-shell .eyebrow {
+  margin-bottom: 4px;
+  font-size: 9px;
+}
+
+.overlay-shell h1 {
+  max-width: none;
+  font-size: 18px;
+  letter-spacing: -0.025em;
+}
+
+.overlay-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #cbd7e8;
+  font-size: 12px;
+}
+
+.overlay-strip span {
+  padding: 6px 9px;
+  border: 1px solid rgba(101, 123, 153, 0.36);
+  border-radius: 999px;
+  background: rgba(10, 16, 25, 0.56);
+  backdrop-filter: blur(10px);
+}
+
+.overlay-strip kbd {
+  margin: 0 3px;
+  padding: 2px 7px;
+  border-bottom-width: 2px;
+}
+
+.overlay-shell .workspace {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 0;
+}
+
+.overlay-shell .transcript-panel,
+.overlay-shell .answer-panel {
+  min-height: 0;
+  border-color: rgba(96, 122, 158, 0.36);
+  background: rgba(8, 13, 21, 0.58);
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(18px);
+}
+
+.overlay-shell .transcript-panel {
+  padding: 12px;
+}
+
+.overlay-shell .section-heading {
+  margin-bottom: 8px;
+}
+
+.overlay-shell textarea {
+  min-height: 112px;
+  max-height: 150px;
+  padding: 11px;
+  background: rgba(5, 9, 15, 0.54);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.overlay-shell .answer-panel {
+  max-height: 282px;
+  padding: 14px;
+  overflow: auto;
+}
+
+.overlay-shell .empty-answer h2 {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.overlay-shell .empty-answer p {
+  font-size: 12px;
+}
+
+.overlay-shell .pulse-ring {
+  width: 34px;
+  height: 34px;
+}
+
+.overlay-shell .direct-answer {
+  margin: 10px 0 12px;
+  padding: 12px;
+  background: linear-gradient(90deg, rgba(58, 181, 157, 0.16), rgba(6, 10, 18, 0.12));
+}
+
+.overlay-shell .direct-answer p {
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.overlay-shell details {
+  padding: 9px 0;
+  font-size: 13px;
+}
+
+.overlay-shell details p,
+.overlay-shell details li {
+  line-height: 1.45;
+}
+
+.overlay-shell pre {
+  max-height: 150px;
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {

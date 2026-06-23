@@ -6,91 +6,119 @@ import { useCopilot } from "./hooks/use-copilot";
 export function App() {
   const copilot = useCopilot();
   const canEdit = copilot.state === "ready_to_send" && !copilot.settings.autoSubmit;
+  const isOverlay = copilot.settings.overlayEnabled;
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${isOverlay ? "overlay-shell" : ""}`}>
       <header className="topbar">
         <div>
           <p className="eyebrow">MEETING COPILOT</p>
-          <h1>Technical answers, without breaking the conversation.</h1>
+          <h1>
+            {isOverlay
+              ? "Live meeting overlay"
+              : "Technical answers, without breaking the conversation."}
+          </h1>
         </div>
-        <StateIndicator state={copilot.state} />
+        <div className="topbar-actions">
+          <StateIndicator state={copilot.state} />
+          {isOverlay && (
+            <button
+              className="secondary compact-button"
+              onClick={() => void copilot.updateSettings({ overlayEnabled: false })}
+            >
+              Exit overlay
+            </button>
+          )}
+        </div>
       </header>
 
-      <section className="control-panel">
-        <div className="hotkey">
-          <span>Hold to listen</span>
-          <kbd>{copilot.settings.hotkey}</kbd>
-        </div>
-        <SourcePicker />
-        <label className="field">
-          Language
-          <select
-            value={copilot.settings.language}
-            onChange={(event) => void copilot.updateSettings({ language: event.target.value })}
-          >
-            <option value="pt">Português</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-        <label className="field">
-          Hotkey
-          <select
-            value={copilot.settings.hotkey}
-            onChange={(event) => void copilot.updateSettings({ hotkey: event.target.value })}
-          >
-            <option value="Space">Space</option>
-            <option value="F8">F8</option>
-            <option value="F9">F9</option>
-            <option value="F10">F10</option>
-          </select>
-        </label>
-        <label className="field">
-          Accuracy
-          <select
-            value={copilot.settings.transcriptionDelay}
-            onChange={(event) =>
-              void copilot.updateSettings({
-                transcriptionDelay: event.target.value as typeof copilot.settings.transcriptionDelay
-              })
-            }
-          >
-            <option value="minimal">Fastest</option>
-            <option value="low">Fast</option>
-            <option value="medium">Balanced</option>
-            <option value="high">Accurate</option>
-            <option value="xhigh">Most accurate</option>
-          </select>
-        </label>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={copilot.settings.includeMicrophone}
-            onChange={(event) =>
-              void copilot.updateSettings({ includeMicrophone: event.target.checked })
-            }
-          />
-          Include microphone
-        </label>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={!copilot.settings.autoSubmit}
-            onChange={(event) => void copilot.updateSettings({ autoSubmit: !event.target.checked })}
-          />
-          Review before sending
-        </label>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={copilot.settings.overlayEnabled}
-            onChange={(event) =>
-              void copilot.updateSettings({ overlayEnabled: event.target.checked })
-            }
-          />
-          Always on top
-        </label>
-      </section>
+      {isOverlay ? (
+        <section className="overlay-strip" aria-label="Overlay controls">
+          <span>
+            Hold <kbd>{copilot.settings.hotkey}</kbd>
+          </span>
+          <span>{copilot.settings.includeMicrophone ? "Mic included" : "Meeting audio only"}</span>
+          <span>Audio not saved</span>
+        </section>
+      ) : (
+        <section className="control-panel">
+          <div className="hotkey">
+            <span>Hold to listen</span>
+            <kbd>{copilot.settings.hotkey}</kbd>
+          </div>
+          <SourcePicker />
+          <label className="field">
+            Language
+            <select
+              value={copilot.settings.language}
+              onChange={(event) => void copilot.updateSettings({ language: event.target.value })}
+            >
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <label className="field">
+            Hotkey
+            <select
+              value={copilot.settings.hotkey}
+              onChange={(event) => void copilot.updateSettings({ hotkey: event.target.value })}
+            >
+              <option value="Space">Space</option>
+              <option value="F8">F8</option>
+              <option value="F9">F9</option>
+              <option value="F10">F10</option>
+            </select>
+          </label>
+          <label className="field">
+            Accuracy
+            <select
+              value={copilot.settings.transcriptionDelay}
+              onChange={(event) =>
+                void copilot.updateSettings({
+                  transcriptionDelay:
+                    event.target.value as typeof copilot.settings.transcriptionDelay
+                })
+              }
+            >
+              <option value="minimal">Fastest</option>
+              <option value="low">Fast</option>
+              <option value="medium">Balanced</option>
+              <option value="high">Accurate</option>
+              <option value="xhigh">Most accurate</option>
+            </select>
+          </label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={copilot.settings.includeMicrophone}
+              onChange={(event) =>
+                void copilot.updateSettings({ includeMicrophone: event.target.checked })
+              }
+            />
+            Include microphone
+          </label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={!copilot.settings.autoSubmit}
+              onChange={(event) =>
+                void copilot.updateSettings({ autoSubmit: !event.target.checked })
+              }
+            />
+            Review before sending
+          </label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={copilot.settings.overlayEnabled}
+              onChange={(event) =>
+                void copilot.updateSettings({ overlayEnabled: event.target.checked })
+              }
+            />
+            Overlay mode
+          </label>
+        </section>
+      )}
 
       <section className="workspace">
         <div className="transcript-panel">
@@ -101,7 +129,7 @@ export function App() {
           <textarea
             value={copilot.transcript}
             readOnly={!canEdit}
-            placeholder="Hold Space while someone asks a technical question…"
+            placeholder={`Hold ${copilot.settings.hotkey} while someone asks a technical question…`}
             onChange={(event) => copilot.setTranscript(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && canEdit) {
@@ -135,11 +163,13 @@ export function App() {
         </div>
       </section>
 
-      <footer>
-        <span>Push-to-talk only</span>
-        <span>Ephemeral transcription credentials</span>
-        <span>Local settings</span>
-      </footer>
+      {!isOverlay && (
+        <footer>
+          <span>Push-to-talk only</span>
+          <span>Ephemeral transcription credentials</span>
+          <span>Local settings</span>
+        </footer>
+      )}
     </main>
   );
 }

@@ -66,6 +66,26 @@ Electron launched inside WSL uses Linux capture semantics. The Windows checkout 
 desktop audio loopback; the API and PostgreSQL can remain in WSL/Docker Desktop. See
 [docs/development.md](docs/development.md).
 
+## Windows executable
+
+Generate the desktop executable from the native Windows checkout, not from WSL:
+
+```powershell
+cd $env:USERPROFILE\code\meeting-copilot
+pnpm install
+pnpm desktop:dist:win
+```
+
+The portable executable is created under `apps\desktop\release\`. The current packaged desktop app
+still expects the backend API at `http://127.0.0.1:3333`, so keep the WSL API/PostgreSQL running for
+now:
+
+```bash
+cd /home/paulomats/code/pessoal/meeting-copilot
+docker compose up -d
+pnpm dev:api
+```
+
 ## Validation
 
 ```bash

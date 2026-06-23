@@ -8,9 +8,53 @@
     "build": "electron-vite build",
     "dev": "electron-vite dev",
     "preview": "electron-vite preview",
+    "pack:win": "electron-vite build && electron-builder --win --dir",
+    "dist:win": "electron-vite build && electron-builder --win portable --x64",
+    "dist:win:installer": "electron-vite build && electron-builder --win nsis --x64",
     "lint": "eslint src electron.vite.config.ts",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "build": {
+    "appId": "com.paulomats.meetingcopilot",
+    "productName": "Meeting Copilot",
+    "copyright": "Copyright © 2026 Paulo Mats",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "node_modules/uiohook-napi/**/*"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${target}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Meeting Copilot",
+      "artifactName": "${productName}-${version}-setup-${arch}.${ext}"
+    }
   },
   "dependencies": {
     "@meeting-copilot/contracts": "workspace:*",
@@ -28,6 +72,7 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.5.2",
     "electron": "^36.4.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^3.1.0",
     "vite": "^6.3.5",
     "vitest": "^3.2.3"

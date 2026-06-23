@@ -34,6 +34,10 @@ input {
   font: inherit;
 }
 
+input[type="range"] {
+  accent-color: #54d9c0;
+}
+
 .app-shell {
   min-height: 100vh;
   padding: 30px;
@@ -158,6 +162,43 @@ select {
 }
 .switch input {
   accent-color: #54d9c0;
+}
+
+.settings-panel {
+  margin-top: 12px;
+  padding: 0;
+  border: 1px solid #202a39;
+  border-radius: 14px;
+  background: rgba(14, 20, 30, 0.62);
+  color: #9caabd;
+}
+
+.settings-panel summary {
+  padding: 13px 16px;
+  border: 0;
+  color: #e0e8f3;
+}
+
+.settings-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 22px;
+  padding: 0 16px 16px;
+}
+
+.range-field {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 240px) 44px;
+  align-items: center;
+  gap: 10px;
+  color: #9caabd;
+  font-size: 13px;
+}
+
+.range-field output {
+  color: #dce6f5;
+  font-variant-numeric: tabular-nums;
 }
 
 .workspace {
@@ -325,9 +366,11 @@ footer span::before {
 .overlay-shell {
   min-height: 100vh;
   padding: 14px;
+  color: var(--overlay-text-color);
+  text-shadow: var(--overlay-text-shadow);
   background:
     radial-gradient(circle at 85% 0%, rgba(84, 217, 192, 0.17), transparent 34%),
-    rgba(4, 8, 14, 0.16);
+    rgba(var(--overlay-shell-rgb), var(--overlay-shell-opacity));
   backdrop-filter: blur(2px);
 }
 
@@ -345,6 +388,14 @@ footer span::before {
   max-width: none;
   font-size: 18px;
   letter-spacing: -0.025em;
+  color: var(--overlay-heading-color);
+}
+
+.overlay-shell .state-indicator {
+  color: var(--overlay-text-color);
+  border-color: rgba(101, 123, 153, var(--overlay-border-opacity));
+  background: rgba(var(--overlay-surface-rgb), var(--overlay-chip-opacity));
+  text-shadow: var(--overlay-text-shadow);
 }
 
 .overlay-strip {
@@ -353,15 +404,15 @@ footer span::before {
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
-  color: #cbd7e8;
+  color: var(--overlay-muted-color);
   font-size: 12px;
 }
 
 .overlay-strip span {
   padding: 6px 9px;
-  border: 1px solid rgba(101, 123, 153, 0.36);
+  border: 1px solid rgba(101, 123, 153, var(--overlay-border-opacity));
   border-radius: 999px;
-  background: rgba(10, 16, 25, 0.56);
+  background: rgba(var(--overlay-surface-rgb), var(--overlay-chip-opacity));
   backdrop-filter: blur(10px);
 }
 
@@ -380,8 +431,8 @@ footer span::before {
 .overlay-shell .transcript-panel,
 .overlay-shell .answer-panel {
   min-height: 0;
-  border-color: rgba(96, 122, 158, 0.36);
-  background: rgba(8, 13, 21, 0.58);
+  border-color: rgba(96, 122, 158, var(--overlay-border-opacity));
+  background: rgba(var(--overlay-surface-rgb), var(--overlay-card-opacity));
   box-shadow: 0 20px 80px rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(18px);
 }
@@ -398,7 +449,9 @@ footer span::before {
   min-height: 112px;
   max-height: 150px;
   padding: 11px;
-  background: rgba(5, 9, 15, 0.54);
+  background: rgba(var(--overlay-field-rgb), var(--overlay-field-opacity));
+  color: var(--overlay-text-color);
+  text-shadow: var(--overlay-text-shadow);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -412,10 +465,12 @@ footer span::before {
 .overlay-shell .empty-answer h2 {
   margin-top: 10px;
   font-size: 14px;
+  color: var(--overlay-heading-color);
 }
 
 .overlay-shell .empty-answer p {
   font-size: 12px;
+  color: var(--overlay-muted-color);
 }
 
 .overlay-shell .pulse-ring {
@@ -426,7 +481,12 @@ footer span::before {
 .overlay-shell .direct-answer {
   margin: 10px 0 12px;
   padding: 12px;
-  background: linear-gradient(90deg, rgba(58, 181, 157, 0.16), rgba(6, 10, 18, 0.12));
+  color: var(--overlay-text-color);
+  background: linear-gradient(
+    90deg,
+    rgba(58, 181, 157, 0.18),
+    rgba(var(--overlay-field-rgb), var(--overlay-shell-opacity))
+  );
 }
 
 .overlay-shell .direct-answer p {
@@ -437,7 +497,12 @@ footer span::before {
 
 .overlay-shell details {
   padding: 9px 0;
+  color: var(--overlay-text-color);
   font-size: 13px;
+}
+
+.overlay-shell summary {
+  color: var(--overlay-heading-color);
 }
 
 .overlay-shell details p,
@@ -447,6 +512,8 @@ footer span::before {
 
 .overlay-shell pre {
   max-height: 150px;
+  color: var(--overlay-text-color);
+  background: rgba(var(--overlay-field-rgb), var(--overlay-field-opacity));
   font-size: 12px;
 }
 

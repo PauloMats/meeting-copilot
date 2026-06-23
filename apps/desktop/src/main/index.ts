@@ -116,7 +116,7 @@ function setOverlayMode(enabled: boolean): void {
     window.setSkipTaskbar(true);
     window.setMenuBarVisibility(false);
     window.setAutoHideMenuBar(true);
-    window.setOpacity(0.94);
+    window.setOpacity(1);
     window.setBackgroundColor("#00000000");
     return;
   }

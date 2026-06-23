@@ -58,7 +58,7 @@ export class RealtimeTokenService {
     return {
       value: secret.value,
       expiresAt: secret.expires_at,
-      websocketUrl: `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(this.transcriptionModel)}`
+      websocketUrl: "wss://api.openai.com/v1/realtime"
     };
   }
 }

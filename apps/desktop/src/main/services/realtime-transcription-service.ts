@@ -31,6 +31,7 @@ export interface TranscriptionEvents {
 export class RealtimeTranscriptionService {
   private socket: WebSocket | null = null;
   private committed = false;
+  private failed = false;
 
   constructor(
     private readonly apiClient: ApiClient,
@@ -55,6 +56,7 @@ export class RealtimeTranscriptionService {
         clearTimeout(timeout);
         this.socket = socket;
         this.committed = false;
+        this.failed = false;
         this.events.state("listening");
         resolve();
       });
@@ -65,7 +67,7 @@ export class RealtimeTranscriptionService {
       socket.on("message", (data) => this.handleProviderEvent(rawDataToString(data)));
       socket.on("close", () => {
         this.socket = null;
-        if (!this.committed) this.events.state("idle");
+        if (!this.committed && !this.failed) this.events.state("idle");
       });
     });
   }
@@ -114,6 +116,7 @@ export class RealtimeTranscriptionService {
       return;
     }
     if (event.type === "error") {
+      this.failed = true;
       this.events.error(event.error?.message ?? "Realtime transcription failed");
       this.events.state("error");
     }

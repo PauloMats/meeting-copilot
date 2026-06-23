@@ -16,7 +16,8 @@ import {
   session,
   type DesktopCapturerSource
 } from "electron";
-import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { ApiClient } from "./services/api-client.js";
 import { HotkeyService } from "./services/hotkey-service.js";
 import { RealtimeTranscriptionService } from "./services/realtime-transcription-service.js";
@@ -29,6 +30,19 @@ let normalWindowBounds: Electron.Rectangle | null = null;
 function send(channel: string, payload?: unknown): void {
   const window = mainWindow;
   if (window && !window.isDestroyed()) window.webContents.send(channel, payload);
+}
+
+function loadDesktopEnvironment(): void {
+  const candidates = [
+    process.env.MEETING_COPILOT_ENV_FILE,
+    resolve(dirname(app.getPath("exe")), ".env"),
+    resolve(app.getPath("userData"), ".env"),
+    process.resourcesPath ? resolve(process.resourcesPath, ".env") : undefined,
+    resolve(import.meta.dirname, "../../../../.env")
+  ].filter((path): path is string => Boolean(path));
+
+  const envFile = candidates.find((path) => existsSync(path));
+  if (envFile) loadEnvironment({ path: envFile });
 }
 
 async function sources(): Promise<DesktopCapturerSource[]> {
@@ -174,14 +188,7 @@ async function createWindow(): Promise<void> {
 }
 
 async function bootstrap(): Promise<void> {
-  loadEnvironment({
-    path:
-      process.env.MEETING_COPILOT_ENV_FILE ??
-      resolve(
-        import.meta.dirname,
-        process.env.NODE_ENV === "production" ? ".env" : "../../../../.env"
-      )
-  });
+  loadDesktopEnvironment();
 
   const settingsService = new SettingsService();
   const apiClient = new ApiClient(process.env.API_BASE_URL ?? "http://127.0.0.1:3333");

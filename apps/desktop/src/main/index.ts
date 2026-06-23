@@ -101,6 +101,27 @@ async function createWindow(): Promise<void> {
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("console-message", (_event, level, message) => {
+    const writer = level >= 2 ? console.error : console.log;
+    writer("Renderer console", message);
+  });
+  mainWindow.webContents.on("preload-error", (_event, preloadPath, error) => {
+    console.error("Preload failed", { preloadPath, error });
+  });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    console.error("Renderer process exited", details);
+  });
+  mainWindow.webContents.on("did-finish-load", () => {
+    void mainWindow?.webContents
+      .executeJavaScript(
+        `({
+          hasCopilotApi: typeof window.copilot === "object",
+          rootChildren: document.querySelector("#root")?.childElementCount ?? -1
+        })`
+      )
+      .then((diagnostics) => console.log("Renderer loaded", diagnostics))
+      .catch((error: unknown) => console.error("Renderer diagnostics failed", error));
+  });
   mainWindow.webContents.on(
     "did-fail-load",
     (_event, errorCode, errorDescription, validatedUrl) => {

@@ -37,7 +37,12 @@ async function sources(): Promise<DesktopCapturerSource[]> {
   });
 }
 
-function registerIpc(): void {
+function registerIpc(
+  settingsService: SettingsService,
+  transcription: RealtimeTranscriptionService,
+  hotkey: HotkeyService,
+  apiClient: ApiClient
+): void {
   ipcMain.handle(IPC_CHANNELS.captureStart, () => transcription.start(settingsService.get()));
   ipcMain.handle(IPC_CHANNELS.captureStop, () => transcription.commit());
   ipcMain.handle(IPC_CHANNELS.captureCancel, () => transcription.cancel());
@@ -110,53 +115,59 @@ async function createWindow(): Promise<void> {
   }
 }
 
-await app.whenReady();
+async function bootstrap(): Promise<void> {
+  loadEnvironment({
+    path:
+      process.env.MEETING_COPILOT_ENV_FILE ??
+      resolve(
+        import.meta.dirname,
+        process.env.NODE_ENV === "production" ? ".env" : "../../../../.env"
+      )
+  });
 
-loadEnvironment({
-  path:
-    process.env.MEETING_COPILOT_ENV_FILE ??
-    resolve(import.meta.dirname, process.env.NODE_ENV === "production" ? ".env" : "../../../../.env")
-});
+  const settingsService = new SettingsService();
+  const apiClient = new ApiClient(process.env.API_BASE_URL ?? "http://127.0.0.1:3333");
+  const transcription = new RealtimeTranscriptionService(apiClient, {
+    state: (state: CaptureState) => send(IPC_CHANNELS.stateChanged, state),
+    delta: (event) => send(IPC_CHANNELS.transcriptDelta, event),
+    final: (event) => send(IPC_CHANNELS.transcriptFinal, event),
+    error: (message) => send(IPC_CHANNELS.transcriptionError, message)
+  });
+  const hotkey = new HotkeyService(
+    () => send(IPC_CHANNELS.hotkeyPressed),
+    () => send(IPC_CHANNELS.hotkeyReleased)
+  );
 
-const settingsService = new SettingsService();
-const apiClient = new ApiClient(process.env.API_BASE_URL ?? "http://127.0.0.1:3333");
-const transcription = new RealtimeTranscriptionService(apiClient, {
-  state: (state: CaptureState) => send(IPC_CHANNELS.stateChanged, state),
-  delta: (event) => send(IPC_CHANNELS.transcriptDelta, event),
-  final: (event) => send(IPC_CHANNELS.transcriptFinal, event),
-  error: (message) => send(IPC_CHANNELS.transcriptionError, message)
-});
-const hotkey = new HotkeyService(
-  () => send(IPC_CHANNELS.hotkeyPressed),
-  () => send(IPC_CHANNELS.hotkeyReleased)
-);
+  registerIpc(settingsService, transcription, hotkey, apiClient);
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === "media");
+  });
+  session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+    void sources()
+      .then((available) => {
+        const source =
+          available.find((candidate) => candidate.id === selectedDesktopSourceId) ?? available[0];
+        if (!source) {
+          callback({});
+          return;
+        }
+        callback(
+          process.platform === "win32" ? { video: source, audio: "loopback" } : { video: source }
+        );
+      })
+      .catch(() => callback({}));
+  });
+  await createWindow();
+  hotkey.start(settingsService.get().hotkey);
 
-registerIpc();
-session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-  callback(permission === "media");
-});
-session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
-  void sources()
-    .then((available) => {
-      const source =
-        available.find((candidate) => candidate.id === selectedDesktopSourceId) ?? available[0];
-      if (!source) {
-        callback({});
-        return;
-      }
-      callback(
-        process.platform === "win32" ? { video: source, audio: "loopback" } : { video: source }
-      );
-    })
-    .catch(() => callback({}));
-});
-await createWindow();
-hotkey.start(settingsService.get().hotkey);
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+  });
+  app.on("before-quit", () => hotkey.stop());
+}
 
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) void createWindow();
-});
-app.on("before-quit", () => hotkey.stop());
+void app.whenReady().then(bootstrap).catch(console.error);
+
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });

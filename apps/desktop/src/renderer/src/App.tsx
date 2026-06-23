@@ -23,6 +23,45 @@ export function App() {
           <kbd>{copilot.settings.hotkey}</kbd>
         </div>
         <SourcePicker />
+        <label className="field">
+          Language
+          <select
+            value={copilot.settings.language}
+            onChange={(event) => void copilot.updateSettings({ language: event.target.value })}
+          >
+            <option value="pt">Português</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <label className="field">
+          Hotkey
+          <select
+            value={copilot.settings.hotkey}
+            onChange={(event) => void copilot.updateSettings({ hotkey: event.target.value })}
+          >
+            <option value="Space">Space</option>
+            <option value="F8">F8</option>
+            <option value="F9">F9</option>
+            <option value="F10">F10</option>
+          </select>
+        </label>
+        <label className="field">
+          Accuracy
+          <select
+            value={copilot.settings.transcriptionDelay}
+            onChange={(event) =>
+              void copilot.updateSettings({
+                transcriptionDelay: event.target.value as typeof copilot.settings.transcriptionDelay
+              })
+            }
+          >
+            <option value="minimal">Fastest</option>
+            <option value="low">Fast</option>
+            <option value="medium">Balanced</option>
+            <option value="high">Accurate</option>
+            <option value="xhigh">Most accurate</option>
+          </select>
+        </label>
         <label className="switch">
           <input
             type="checkbox"

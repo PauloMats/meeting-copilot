@@ -75,9 +75,15 @@ function registerIpc(): void {
     selectedDesktopSourceId = id;
   });
   ipcMain.handle(IPC_CHANNELS.settingsGet, () => settingsService.get());
-  ipcMain.handle(IPC_CHANNELS.settingsUpdate, (_event, patch: Partial<AppSettings>) =>
-    settingsService.update(patch)
-  );
+  ipcMain.handle(IPC_CHANNELS.settingsUpdate, (_event, patch: Partial<AppSettings>) => {
+    const previous = settingsService.get();
+    const next = settingsService.update(patch);
+    if (next.hotkey !== previous.hotkey) {
+      hotkey.stop();
+      hotkey.start(next.hotkey);
+    }
+    return next;
+  });
   ipcMain.handle(IPC_CHANNELS.realtimeToken, (_event, request: unknown) =>
     apiClient.createRealtimeToken(RealtimeTokenRequestSchema.parse(request))
   );

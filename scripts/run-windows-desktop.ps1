@@ -13,15 +13,17 @@ if (-not $corepack -and (Test-Path "$env:ProgramFiles\nodejs\corepack.cmd")) {
 if (-not $node -or -not $corepack) {
   throw "Node.js and Corepack were not found. Install Node.js 22 or newer and reopen PowerShell."
 }
+$nodePath = if ($node.Source) { $node.Source } else { $node.FullName }
+$corepackPath = if ($corepack.Source) { $corepack.Source } else { $corepack.FullName }
 $shimDirectory = Join-Path $env:LOCALAPPDATA "meeting-copilot\bin"
 
-if ([version](& $node.Source --version).TrimStart("v") -lt [version]"22.0.0") {
+if ([version](& $nodePath --version).TrimStart("v") -lt [version]"22.0.0") {
   throw "Node.js 22 or newer is required."
 }
 
 New-Item -ItemType Directory -Force -Path $shimDirectory | Out-Null
-& $corepack.Source enable --install-directory $shimDirectory
-$env:PATH = "$(Split-Path $node.Source);$shimDirectory;$env:PATH"
+& $corepackPath enable --install-directory $shimDirectory
+$env:PATH = "$(Split-Path $nodePath);$shimDirectory;$env:PATH"
 $pnpm = Join-Path $shimDirectory "pnpm.cmd"
 
 Push-Location $repositoryRoot

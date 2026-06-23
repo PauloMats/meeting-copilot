@@ -10,6 +10,8 @@ export const IPC_CHANNELS = {
   captureStart: "capture:start",
   captureStop: "capture:stop",
   captureCancel: "capture:cancel",
+  hotkeyPressed: "hotkey:pressed",
+  hotkeyReleased: "hotkey:released",
   audioChunk: "audio:chunk",
   stateChanged: "state:changed",
   transcriptDelta: "transcript:delta",
@@ -63,6 +65,8 @@ export interface CopilotApi {
     setOverlay(enabled: boolean): Promise<void>;
   };
   events: {
+    onHotkeyPressed(listener: () => void): () => void;
+    onHotkeyReleased(listener: () => void): () => void;
     onStateChanged(listener: (state: CaptureState) => void): () => void;
     onTranscriptDelta(listener: (event: TranscriptDelta) => void): () => void;
     onTranscriptFinal(listener: (event: TranscriptFinal) => void): () => void;

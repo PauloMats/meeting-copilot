@@ -26,12 +26,7 @@ export const glossaryKind = pgEnum("glossary_kind", [
   "codeword",
   "synonym"
 ]);
-export const turnStatus = pgEnum("turn_status", [
-  "streaming",
-  "final",
-  "cancelled",
-  "failed"
-]);
+export const turnStatus = pgEnum("turn_status", ["streaming", "final", "cancelled", "failed"]);
 export const confidence = pgEnum("confidence", ["high", "medium", "low"]);
 export const documentStatus = pgEnum("document_status", [
   "uploaded",
@@ -130,9 +125,7 @@ export const meetingTurns = pgTable(
     finalizedAt: timestamp("finalized_at", { withTimezone: true }),
     ...timestamps
   },
-  (table) => [
-    uniqueIndex("meeting_turns_session_sequence_idx").on(table.sessionId, table.sequence)
-  ]
+  (table) => [uniqueIndex("meeting_turns_session_sequence_idx").on(table.sessionId, table.sequence)]
 );
 
 export const transcriptsRaw = pgTable("transcripts_raw", {

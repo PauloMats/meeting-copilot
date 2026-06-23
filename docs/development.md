@@ -47,7 +47,7 @@ For a real audio test, use a separate native Windows checkout so Linux and Windo
 git clone git@github.com:PauloMats/meeting-copilot.git $env:USERPROFILE\code\meeting-copilot
 cd $env:USERPROFILE\code\meeting-copilot
 Copy-Item .env.example .env
-.\scripts\run-windows-desktop.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-windows-desktop.ps1
 ```
 
 Keep the API running in WSL. Windows forwards `127.0.0.1:3333` to the WSL service, and Docker

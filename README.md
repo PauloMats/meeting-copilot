@@ -59,7 +59,7 @@ pnpm dev:desktop
 For the first real audio test, run Electron from a native Windows checkout:
 
 ```powershell
-.\scripts\run-windows-desktop.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-windows-desktop.ps1
 ```
 
 Electron launched inside WSL uses Linux capture semantics. The Windows checkout is required for

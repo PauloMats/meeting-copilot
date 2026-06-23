@@ -1,8 +1,18 @@
 $ErrorActionPreference = "Stop"
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$node = Get-Command node -ErrorAction Stop
-$corepack = Get-Command corepack -ErrorAction Stop
+$node = Get-Command node -ErrorAction SilentlyContinue
+$corepack = Get-Command corepack -ErrorAction SilentlyContinue
+
+if (-not $node -and (Test-Path "$env:ProgramFiles\nodejs\node.exe")) {
+  $node = Get-Item "$env:ProgramFiles\nodejs\node.exe"
+}
+if (-not $corepack -and (Test-Path "$env:ProgramFiles\nodejs\corepack.cmd")) {
+  $corepack = Get-Item "$env:ProgramFiles\nodejs\corepack.cmd"
+}
+if (-not $node -or -not $corepack) {
+  throw "Node.js and Corepack were not found. Install Node.js 22 or newer and reopen PowerShell."
+}
 $shimDirectory = Join-Path $env:LOCALAPPDATA "meeting-copilot\bin"
 
 if ([version](& $node.Source --version).TrimStart("v") -lt [version]"22.0.0") {

@@ -21,33 +21,13 @@ import { HotkeyService } from "./services/hotkey-service.js";
 import { RealtimeTranscriptionService } from "./services/realtime-transcription-service.js";
 import { SettingsService } from "./services/settings-service.js";
 
-loadEnvironment({
-  path:
-    process.env.MEETING_COPILOT_ENV_FILE ??
-    resolve(app.getAppPath(), process.env.NODE_ENV === "production" ? ".env" : "../../.env")
-});
-
 let mainWindow: BrowserWindow | null = null;
 let selectedDesktopSourceId: string | null = null;
-const settingsService = new SettingsService();
-const apiClient = new ApiClient(process.env.API_BASE_URL ?? "http://127.0.0.1:3333");
 
 function send(channel: string, payload?: unknown): void {
   const window = mainWindow;
   if (window && !window.isDestroyed()) window.webContents.send(channel, payload);
 }
-
-const transcription = new RealtimeTranscriptionService(apiClient, {
-  state: (state: CaptureState) => send(IPC_CHANNELS.stateChanged, state),
-  delta: (event) => send(IPC_CHANNELS.transcriptDelta, event),
-  final: (event) => send(IPC_CHANNELS.transcriptFinal, event),
-  error: (message) => send(IPC_CHANNELS.transcriptionError, message)
-});
-
-const hotkey = new HotkeyService(
-  () => send(IPC_CHANNELS.hotkeyPressed),
-  () => send(IPC_CHANNELS.hotkeyReleased)
-);
 
 async function sources(): Promise<DesktopCapturerSource[]> {
   return desktopCapturer.getSources({
@@ -102,7 +82,7 @@ async function createWindow(): Promise<void> {
     height: 780,
     minWidth: 820,
     minHeight: 600,
-    show: false,
+    show: true,
     backgroundColor: "#090d14",
     title: "Meeting Copilot",
     webPreferences: {
@@ -115,8 +95,13 @@ async function createWindow(): Promise<void> {
     }
   });
 
-  mainWindow.once("ready-to-show", () => mainWindow?.show());
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedUrl) => {
+      console.error("Renderer failed to load", { errorCode, errorDescription, validatedUrl });
+    }
+  );
 
   if (process.env.ELECTRON_RENDERER_URL) {
     await mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -126,6 +111,26 @@ async function createWindow(): Promise<void> {
 }
 
 await app.whenReady();
+
+loadEnvironment({
+  path:
+    process.env.MEETING_COPILOT_ENV_FILE ??
+    resolve(import.meta.dirname, process.env.NODE_ENV === "production" ? ".env" : "../../../../.env")
+});
+
+const settingsService = new SettingsService();
+const apiClient = new ApiClient(process.env.API_BASE_URL ?? "http://127.0.0.1:3333");
+const transcription = new RealtimeTranscriptionService(apiClient, {
+  state: (state: CaptureState) => send(IPC_CHANNELS.stateChanged, state),
+  delta: (event) => send(IPC_CHANNELS.transcriptDelta, event),
+  final: (event) => send(IPC_CHANNELS.transcriptFinal, event),
+  error: (message) => send(IPC_CHANNELS.transcriptionError, message)
+});
+const hotkey = new HotkeyService(
+  () => send(IPC_CHANNELS.hotkeyPressed),
+  () => send(IPC_CHANNELS.hotkeyReleased)
+);
+
 registerIpc();
 session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
   callback(permission === "media");

@@ -7,8 +7,9 @@ const optionalNonEmptyString = z.preprocess(
 
 const ConfigSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  API_HOST: z.string().default("127.0.0.1"),
-  API_PORT: z.coerce.number().int().positive().default(3333),
+  API_HOST: z.string().default("0.0.0.0"),
+  API_PORT: z.coerce.number().int().positive().optional(),
+  PORT: z.coerce.number().int().positive().optional(),
   DATABASE_URL: z.preprocess(
     (value) => (value === "" ? undefined : value),
     z.string().url().optional()
@@ -23,8 +24,24 @@ const ConfigSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:5173")
 });
 
-export type AppConfig = z.infer<typeof ConfigSchema>;
+export type AppConfig = Omit<z.infer<typeof ConfigSchema>, "PORT" | "API_PORT"> & {
+  API_PORT: number;
+};
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppConfig {
-  return ConfigSchema.parse(environment);
+  const config = ConfigSchema.parse(environment);
+  return {
+    NODE_ENV: config.NODE_ENV,
+    API_HOST: config.API_HOST,
+    DATABASE_URL: config.DATABASE_URL,
+    APP_USER_EMAIL: config.APP_USER_EMAIL,
+    OPENAI_API_KEY: config.OPENAI_API_KEY,
+    OPENAI_ANSWER_MODEL: config.OPENAI_ANSWER_MODEL,
+    OPENAI_REALTIME_TRANSCRIPTION_MODEL: config.OPENAI_REALTIME_TRANSCRIPTION_MODEL,
+    RETRIEVAL_PROVIDER: config.RETRIEVAL_PROVIDER,
+    OPENAI_VECTOR_STORE_ID: config.OPENAI_VECTOR_STORE_ID,
+    LOG_LEVEL: config.LOG_LEVEL,
+    CORS_ORIGIN: config.CORS_ORIGIN,
+    API_PORT: config.API_PORT ?? config.PORT ?? 3333
+  };
 }

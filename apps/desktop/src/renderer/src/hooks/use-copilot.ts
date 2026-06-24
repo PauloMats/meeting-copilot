@@ -81,6 +81,7 @@ export function useCopilot() {
     const unsubscribe = [
       window.copilot.events.onHotkeyPressed(() => void startTurn()),
       window.copilot.events.onHotkeyReleased(() => void stopTurn()),
+      window.copilot.events.onSettingsChanged(setSettings),
       window.copilot.events.onStateChanged(setState),
       window.copilot.events.onTranscriptDelta(({ delta }) => {
         transcriptRef.current += delta;
@@ -102,9 +103,6 @@ export function useCopilot() {
   const updateSettings = async (patch: Partial<AppSettings>) => {
     const next = await window.copilot.settings.update(patch);
     setSettings(next);
-    if (patch.overlayEnabled !== undefined) {
-      await window.copilot.window.setOverlay(patch.overlayEnabled);
-    }
   };
 
   const cancel = async () => {

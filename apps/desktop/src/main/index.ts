@@ -12,6 +12,7 @@ import {
   BrowserWindow,
   desktopCapturer,
   ipcMain,
+  Menu,
   screen,
   session,
   type DesktopCapturerSource
@@ -26,10 +27,32 @@ import { SettingsService } from "./services/settings-service.js";
 let mainWindow: BrowserWindow | null = null;
 let selectedDesktopSourceId: string | null = null;
 let normalWindowBounds: Electron.Rectangle | null = null;
+let currentSettingsService: SettingsService | null = null;
+let currentHotkeyService: HotkeyService | null = null;
 
 function send(channel: string, payload?: unknown): void {
   const window = mainWindow;
   if (window && !window.isDestroyed()) window.webContents.send(channel, payload);
+}
+
+function isMac(): boolean {
+  return process.platform === "darwin";
+}
+
+function applySettingsPatch(patch: Partial<AppSettings>): AppSettings | null {
+  const settingsService = currentSettingsService;
+  if (!settingsService) return null;
+
+  const previous = settingsService.get();
+  const next = settingsService.update(patch);
+  if (next.hotkey !== previous.hotkey && currentHotkeyService) {
+    currentHotkeyService.stop();
+    currentHotkeyService.start(next.hotkey);
+  }
+  if (patch.overlayEnabled !== undefined) setOverlayMode(next.overlayEnabled);
+  buildApplicationMenu(next);
+  send(IPC_CHANNELS.settingsChanged, next);
+  return next;
 }
 
 function loadDesktopEnvironment(): void {
@@ -77,12 +100,8 @@ function registerIpc(
   });
   ipcMain.handle(IPC_CHANNELS.settingsGet, () => settingsService.get());
   ipcMain.handle(IPC_CHANNELS.settingsUpdate, (_event, patch: Partial<AppSettings>) => {
-    const previous = settingsService.get();
-    const next = settingsService.update(patch);
-    if (next.hotkey !== previous.hotkey) {
-      hotkey.stop();
-      hotkey.start(next.hotkey);
-    }
+    const next = applySettingsPatch(patch);
+    if (!next) throw new Error("Settings service is not available");
     return next;
   });
   ipcMain.handle(IPC_CHANNELS.realtimeToken, (_event, request: unknown) =>
@@ -96,6 +115,138 @@ function registerIpc(
   });
 }
 
+function buildApplicationMenu(settings: AppSettings): void {
+  const languageOptions: Array<{ label: string; language: string }> = [
+    { label: "Português (Brasil)", language: "pt" },
+    { label: "English", language: "en" },
+    { label: "Español", language: "es" },
+    { label: "Русский", language: "ru" },
+    { label: "Français", language: "fr" },
+    { label: "Italiano", language: "it" }
+  ];
+  const hotkeys = ["Space", "F8", "F9", "F10"];
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac()
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" as const },
+              { type: "separator" as const },
+              { role: "quit" as const }
+            ]
+          }
+        ]
+      : []),
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "Toggle Overlay",
+          accelerator: "CommandOrControl+Shift+O",
+          type: "checkbox",
+          checked: settings.overlayEnabled,
+          click: () => {
+            applySettingsPatch({ overlayEnabled: !settings.overlayEnabled });
+          }
+        },
+        { type: "separator" },
+        isMac() ? { role: "close" } : { role: "quit" }
+      ]
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "selectAll" }
+      ]
+    },
+    {
+      label: "Tools",
+      submenu: [
+        {
+          label: "Include microphone",
+          type: "checkbox",
+          checked: settings.includeMicrophone,
+          click: () => {
+            applySettingsPatch({ includeMicrophone: !settings.includeMicrophone });
+          }
+        },
+        {
+          label: "Review before sending",
+          type: "checkbox",
+          checked: !settings.autoSubmit,
+          click: () => {
+            applySettingsPatch({ autoSubmit: !settings.autoSubmit });
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Language",
+          submenu: languageOptions.map(({ label, language }) => ({
+            label,
+            type: "radio" as const,
+            checked: settings.language === language,
+            click: () => {
+              applySettingsPatch({ language });
+            }
+          }))
+        },
+        {
+          label: "Hotkey",
+          submenu: hotkeys.map((hotkey) => ({
+            label: hotkey,
+            type: "radio" as const,
+            checked: settings.hotkey === hotkey,
+            click: () => {
+              applySettingsPatch({ hotkey });
+            }
+          }))
+        }
+      ]
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { role: "forceReload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" }
+      ]
+    },
+    {
+      label: "Window",
+      submenu: [{ role: "minimize" }, { role: "close" }]
+    },
+    {
+      label: "Help",
+      submenu: [
+        {
+          label: "Health check",
+          click: () => {
+            mainWindow?.webContents.send(
+              IPC_CHANNELS.transcriptionError,
+              "Check /api/health in the backend logs."
+            );
+          }
+        }
+      ]
+    }
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 function setOverlayMode(enabled: boolean): void {
   const window = mainWindow;
   if (!window || window.isDestroyed()) return;
@@ -103,8 +254,8 @@ function setOverlayMode(enabled: boolean): void {
   if (enabled) {
     normalWindowBounds = window.getBounds();
     const { workArea } = screen.getPrimaryDisplay();
-    const width = Math.min(760, workArea.width - 48);
-    const height = Math.min(560, workArea.height - 48);
+    const width = Math.min(620, workArea.width - 48);
+    const height = Math.min(430, workArea.height - 48);
     window.setBounds({
       width,
       height,
@@ -114,6 +265,7 @@ function setOverlayMode(enabled: boolean): void {
     window.setAlwaysOnTop(true, "screen-saver");
     window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     window.setSkipTaskbar(true);
+    window.setResizable(true);
     window.setMenuBarVisibility(false);
     window.setAutoHideMenuBar(true);
     window.setOpacity(1);
@@ -191,6 +343,7 @@ async function bootstrap(): Promise<void> {
   loadDesktopEnvironment();
 
   const settingsService = new SettingsService();
+  currentSettingsService = settingsService;
   const apiClient = new ApiClient(process.env.API_BASE_URL ?? "http://127.0.0.1:3333");
   const transcription = new RealtimeTranscriptionService(apiClient, {
     state: (state: CaptureState) => send(IPC_CHANNELS.stateChanged, state),
@@ -202,6 +355,7 @@ async function bootstrap(): Promise<void> {
     () => send(IPC_CHANNELS.hotkeyPressed),
     () => send(IPC_CHANNELS.hotkeyReleased)
   );
+  currentHotkeyService = hotkey;
 
   registerIpc(settingsService, transcription, hotkey, apiClient);
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
@@ -224,6 +378,7 @@ async function bootstrap(): Promise<void> {
   });
   await createWindow();
   const initialSettings = settingsService.get();
+  buildApplicationMenu(initialSettings);
   setOverlayMode(initialSettings.overlayEnabled);
   hotkey.start(initialSettings.hotkey);
 

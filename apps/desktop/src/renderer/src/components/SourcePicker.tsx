@@ -1,7 +1,7 @@
 import type { DesktopSource } from "@meeting-copilot/contracts";
 import { useEffect, useState } from "react";
 
-export function SourcePicker() {
+export function SourcePicker({ label }: { label: string }) {
   const [sources, setSources] = useState<DesktopSource[]>([]);
   const [selected, setSelected] = useState("");
 
@@ -17,7 +17,7 @@ export function SourcePicker() {
 
   return (
     <label className="field">
-      Meeting audio source
+      {label}
       <select
         value={selected}
         onChange={(event) => {

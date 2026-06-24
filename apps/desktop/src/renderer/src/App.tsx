@@ -3,6 +3,7 @@ import { AnswerCard } from "./components/AnswerCard";
 import { SourcePicker } from "./components/SourcePicker";
 import { StateIndicator } from "./components/StateIndicator";
 import { useCopilot } from "./hooks/use-copilot";
+import { getMessages, languages } from "./i18n";
 
 export function App() {
   const copilot = useCopilot();
@@ -10,6 +11,7 @@ export function App() {
   const isOverlay = copilot.settings.overlayEnabled;
   const overlayOpacity = copilot.settings.overlayOpacity;
   const isLightOverlayText = copilot.settings.overlayTextTheme === "light";
+  const t = getMessages(copilot.settings.language);
   const overlayStyle = {
     "--overlay-shell-opacity": Math.max(0.02, overlayOpacity - 0.42).toFixed(2),
     "--overlay-chip-opacity": Math.min(0.88, overlayOpacity + 0.08).toFixed(2),
@@ -32,55 +34,56 @@ export function App() {
   return (
     <main className={`app-shell ${isOverlay ? "overlay-shell" : ""}`} style={overlayStyle}>
       <header className="topbar">
-        <div>
-          <p className="eyebrow">MEETING COPILOT</p>
-          <h1>
-            {isOverlay
-              ? "Live meeting overlay"
-              : "Technical answers, without breaking the conversation."}
-          </h1>
-        </div>
-        <div className="topbar-actions">
-          <StateIndicator state={copilot.state} />
-          {isOverlay && (
-            <button
-              className="secondary compact-button"
-              onClick={() => void copilot.updateSettings({ overlayEnabled: false })}
-            >
-              Exit overlay
-            </button>
-          )}
-        </div>
+        {isOverlay ? (
+          <button
+            className="secondary compact-button overlay-exit"
+            onClick={() => void copilot.updateSettings({ overlayEnabled: false })}
+          >
+            {t.exitOverlay}
+          </button>
+        ) : (
+          <>
+            <div>
+              <p className="eyebrow">{t.appTitle}</p>
+              <h1>{t.hero}</h1>
+            </div>
+            <div className="topbar-actions">
+              <StateIndicator state={copilot.state} labels={t.states} />
+            </div>
+          </>
+        )}
       </header>
 
       {isOverlay ? (
-        <section className="overlay-strip" aria-label="Overlay controls">
+        <section className="overlay-status" aria-label="Overlay controls">
+          <StateIndicator state={copilot.state} labels={t.states} />
           <span>
-            Hold <kbd>{copilot.settings.hotkey}</kbd>
+            {t.hold} <kbd>{copilot.settings.hotkey}</kbd>
           </span>
-          <span>{copilot.settings.includeMicrophone ? "Mic included" : "Meeting audio only"}</span>
-          <span>Audio not saved</span>
         </section>
       ) : (
         <>
           <section className="control-panel">
             <div className="hotkey">
-              <span>Hold to listen</span>
+              <span>{t.holdToListen}</span>
               <kbd>{copilot.settings.hotkey}</kbd>
             </div>
-            <SourcePicker />
+            <SourcePicker label={t.meetingAudioSource} />
             <label className="field">
-              Language
+              {t.language}
               <select
                 value={copilot.settings.language}
                 onChange={(event) => void copilot.updateSettings({ language: event.target.value })}
               >
-                <option value="pt">Português</option>
-                <option value="en">English</option>
+                {languages.map((language) => (
+                  <option key={language.value} value={language.value}>
+                    {language.label}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="field">
-              Hotkey
+              {t.hotkey}
               <select
                 value={copilot.settings.hotkey}
                 onChange={(event) => void copilot.updateSettings({ hotkey: event.target.value })}
@@ -92,7 +95,7 @@ export function App() {
               </select>
             </label>
             <label className="field">
-              Accuracy
+              {t.accuracy}
               <select
                 value={copilot.settings.transcriptionDelay}
                 onChange={(event) =>
@@ -102,11 +105,11 @@ export function App() {
                   })
                 }
               >
-                <option value="minimal">Fastest</option>
-                <option value="low">Fast</option>
-                <option value="medium">Balanced</option>
-                <option value="high">Accurate</option>
-                <option value="xhigh">Most accurate</option>
+                <option value="minimal">{t.fastest}</option>
+                <option value="low">{t.fast}</option>
+                <option value="medium">{t.balanced}</option>
+                <option value="high">{t.accurate}</option>
+                <option value="xhigh">{t.mostAccurate}</option>
               </select>
             </label>
             <label className="switch">
@@ -117,7 +120,7 @@ export function App() {
                   void copilot.updateSettings({ includeMicrophone: event.target.checked })
                 }
               />
-              Include microphone
+              {t.includeMicrophone}
             </label>
             <label className="switch">
               <input
@@ -127,7 +130,7 @@ export function App() {
                   void copilot.updateSettings({ autoSubmit: !event.target.checked })
                 }
               />
-              Review before sending
+              {t.reviewBeforeSending}
             </label>
             <label className="switch">
               <input
@@ -137,15 +140,15 @@ export function App() {
                   void copilot.updateSettings({ overlayEnabled: event.target.checked })
                 }
               />
-              Overlay mode
+              {t.overlayMode}
             </label>
           </section>
 
           <details className="settings-panel">
-            <summary>Settings</summary>
+            <summary>{t.settings}</summary>
             <div className="settings-grid">
               <label className="range-field">
-                <span>Overlay opacity</span>
+                <span>{t.overlayOpacity}</span>
                 <input
                   type="range"
                   min="0.08"
@@ -161,7 +164,7 @@ export function App() {
                 <output>{Math.round(copilot.settings.overlayOpacity * 100)}%</output>
               </label>
               <label className="field">
-                Overlay text
+                {t.overlayText}
                 <select
                   value={copilot.settings.overlayTextTheme}
                   onChange={(event) =>
@@ -171,8 +174,8 @@ export function App() {
                     })
                   }
                 >
-                  <option value="light">Light text</option>
-                  <option value="dark">Dark text</option>
+                  <option value="light">{t.lightText}</option>
+                  <option value="dark">{t.darkText}</option>
                 </select>
               </label>
               <label className="switch">
@@ -183,7 +186,7 @@ export function App() {
                     void copilot.updateSettings({ overlayTextShadow: event.target.checked })
                   }
                 />
-                Overlay text shadow
+                {t.overlayTextShadow}
               </label>
             </div>
           </details>
@@ -193,13 +196,13 @@ export function App() {
       <section className="workspace">
         <div className="transcript-panel">
           <div className="section-heading">
-            <h2>Transcript</h2>
-            <span>Audio is not saved</span>
+            <h2>{t.transcript}</h2>
+            <span>{t.audioNotSaved}</span>
           </div>
           <textarea
             value={copilot.transcript}
             readOnly={!canEdit}
-            placeholder={`Hold ${copilot.settings.hotkey} while someone asks a technical question…`}
+            placeholder={t.holdPlaceholder(copilot.settings.hotkey)}
             onChange={(event) => copilot.setTranscript(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && canEdit) {
@@ -212,9 +215,9 @@ export function App() {
           {canEdit && (
             <div className="review-actions">
               <button className="secondary" onClick={() => void copilot.cancel()}>
-                Cancel
+                {t.cancel}
               </button>
-              <button onClick={() => void copilot.submit()}>Send answer</button>
+              <button onClick={() => void copilot.submit()}>{t.sendAnswer}</button>
             </div>
           )}
           {copilot.error && <p className="error-message">{copilot.error}</p>}
@@ -222,12 +225,21 @@ export function App() {
 
         <div className="answer-panel">
           {copilot.answer ? (
-            <AnswerCard answer={copilot.answer} />
+            <AnswerCard
+              answer={copilot.answer}
+              labels={{
+                answer: t.answer,
+                why: t.why,
+                example: t.example,
+                assumptions: t.assumptions,
+                confidence: t.confidence
+              }}
+            />
           ) : (
             <div className="empty-answer">
               <div className="pulse-ring" />
-              <h2>Your answer will appear here</h2>
-              <p>Direct response first, explanation and example underneath.</p>
+              <h2>{t.answerPlaceholderTitle}</h2>
+              <p>{t.answerPlaceholderBody}</p>
             </div>
           )}
         </div>
@@ -235,9 +247,9 @@ export function App() {
 
       {!isOverlay && (
         <footer>
-          <span>Push-to-talk only</span>
-          <span>Ephemeral transcription credentials</span>
-          <span>Local settings</span>
+          <span>{t.pushToTalkOnly}</span>
+          <span>{t.ephemeralCredentials}</span>
+          <span>{t.localSettings}</span>
         </footer>
       )}
     </main>

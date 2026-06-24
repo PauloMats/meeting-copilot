@@ -1,24 +1,36 @@
 import type { Answer } from "@meeting-copilot/contracts";
 
-export function AnswerCard({ answer }: { answer: Answer }) {
+export function AnswerCard({
+  answer,
+  labels
+}: {
+  answer: Answer;
+  labels: {
+    answer: string;
+    why: string;
+    example: string;
+    assumptions: string;
+    confidence: (value: string) => string;
+  };
+}) {
   return (
     <article className="answer-card">
       <header>
         <span className={`confidence confidence-${answer.confidence}`}>
-          {answer.confidence} confidence
+          {labels.confidence(answer.confidence)}
         </span>
       </header>
       <section className="direct-answer">
-        <h2>Answer</h2>
+        <h2>{labels.answer}</h2>
         <p>{answer.direct_answer}</p>
       </section>
       <details open>
-        <summary>Why</summary>
+        <summary>{labels.why}</summary>
         <p>{answer.detailed_explanation}</p>
       </details>
       {answer.example && (
         <details open>
-          <summary>Example</summary>
+          <summary>{labels.example}</summary>
           <pre>
             <code>{answer.example}</code>
           </pre>
@@ -26,7 +38,7 @@ export function AnswerCard({ answer }: { answer: Answer }) {
       )}
       {answer.assumptions.length > 0 && (
         <details>
-          <summary>Assumptions and risks</summary>
+          <summary>{labels.assumptions}</summary>
           <ul>
             {answer.assumptions.map((item) => (
               <li key={item}>{item}</li>

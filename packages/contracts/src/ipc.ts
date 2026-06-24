@@ -21,6 +21,7 @@ export const IPC_CHANNELS = {
   selectDesktopSource: "desktop-sources:select",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
+  settingsChanged: "settings:changed",
   answerGenerate: "answer:generate",
   realtimeToken: "realtime:token",
   overlaySet: "overlay:set"
@@ -67,6 +68,7 @@ export interface CopilotApi {
   events: {
     onHotkeyPressed(listener: () => void): () => void;
     onHotkeyReleased(listener: () => void): () => void;
+    onSettingsChanged(listener: (settings: AppSettings) => void): () => void;
     onStateChanged(listener: (state: CaptureState) => void): () => void;
     onTranscriptDelta(listener: (event: TranscriptDelta) => void): () => void;
     onTranscriptFinal(listener: (event: TranscriptFinal) => void): () => void;

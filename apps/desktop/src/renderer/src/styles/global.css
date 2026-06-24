@@ -365,58 +365,54 @@ footer span::before {
 
 .overlay-shell {
   min-height: 100vh;
-  padding: 14px;
+  padding: 10px;
   color: var(--overlay-text-color);
   text-shadow: var(--overlay-text-shadow);
-  background:
-    radial-gradient(circle at 85% 0%, rgba(84, 217, 192, 0.17), transparent 34%),
-    rgba(var(--overlay-shell-rgb), var(--overlay-shell-opacity));
-  backdrop-filter: blur(2px);
+  background: rgba(var(--overlay-shell-rgb), calc(var(--overlay-shell-opacity) * 0.34));
+  backdrop-filter: none;
 }
 
 .overlay-shell .topbar {
-  margin-bottom: 10px;
-  gap: 14px;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+  min-height: 0;
 }
 
-.overlay-shell .eyebrow {
-  margin-bottom: 4px;
-  font-size: 9px;
+.overlay-exit {
+  opacity: 0.54;
 }
 
-.overlay-shell h1 {
-  max-width: none;
-  font-size: 18px;
-  letter-spacing: -0.025em;
-  color: var(--overlay-heading-color);
+.overlay-exit:hover,
+.overlay-exit:focus {
+  opacity: 1;
 }
 
 .overlay-shell .state-indicator {
   color: var(--overlay-text-color);
   border-color: rgba(101, 123, 153, var(--overlay-border-opacity));
-  background: rgba(var(--overlay-surface-rgb), var(--overlay-chip-opacity));
+  background: rgba(var(--overlay-surface-rgb), calc(var(--overlay-chip-opacity) * 0.62));
   text-shadow: var(--overlay-text-shadow);
 }
 
-.overlay-strip {
+.overlay-status {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--overlay-muted-color);
   font-size: 12px;
 }
 
-.overlay-strip span {
+.overlay-status > span {
   padding: 6px 9px;
   border: 1px solid rgba(101, 123, 153, var(--overlay-border-opacity));
   border-radius: 999px;
-  background: rgba(var(--overlay-surface-rgb), var(--overlay-chip-opacity));
-  backdrop-filter: blur(10px);
+  background: rgba(var(--overlay-surface-rgb), calc(var(--overlay-chip-opacity) * 0.62));
+  backdrop-filter: blur(8px);
 }
 
-.overlay-strip kbd {
+.overlay-status kbd {
   margin: 0 3px;
   padding: 2px 7px;
   border-bottom-width: 2px;
@@ -432,9 +428,9 @@ footer span::before {
 .overlay-shell .answer-panel {
   min-height: 0;
   border-color: rgba(96, 122, 158, var(--overlay-border-opacity));
-  background: rgba(var(--overlay-surface-rgb), var(--overlay-card-opacity));
-  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(18px);
+  background: rgba(var(--overlay-surface-rgb), calc(var(--overlay-card-opacity) * 0.48));
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(10px);
 }
 
 .overlay-shell .transcript-panel {
@@ -442,14 +438,15 @@ footer span::before {
 }
 
 .overlay-shell .section-heading {
-  margin-bottom: 8px;
+  display: none;
 }
 
 .overlay-shell textarea {
-  min-height: 112px;
-  max-height: 150px;
-  padding: 11px;
-  background: rgba(var(--overlay-field-rgb), var(--overlay-field-opacity));
+  min-height: 96px;
+  max-height: 128px;
+  padding: 9px;
+  border-color: rgba(96, 122, 158, calc(var(--overlay-border-opacity) * 0.7));
+  background: rgba(var(--overlay-field-rgb), calc(var(--overlay-field-opacity) * 0.32));
   color: var(--overlay-text-color);
   text-shadow: var(--overlay-text-shadow);
   font-size: 13px;
@@ -457,9 +454,13 @@ footer span::before {
 }
 
 .overlay-shell .answer-panel {
-  max-height: 282px;
-  padding: 14px;
+  max-height: 246px;
+  padding: 10px;
   overflow: auto;
+}
+
+.overlay-shell .answer-card header {
+  display: none;
 }
 
 .overlay-shell .empty-answer h2 {
@@ -479,14 +480,18 @@ footer span::before {
 }
 
 .overlay-shell .direct-answer {
-  margin: 10px 0 12px;
-  padding: 12px;
+  margin: 0 0 8px;
+  padding: 9px;
   color: var(--overlay-text-color);
   background: linear-gradient(
     90deg,
-    rgba(58, 181, 157, 0.18),
-    rgba(var(--overlay-field-rgb), var(--overlay-shell-opacity))
+    rgba(58, 181, 157, 0.12),
+    rgba(var(--overlay-field-rgb), calc(var(--overlay-shell-opacity) * 0.44))
   );
+}
+
+.overlay-shell .direct-answer h2 {
+  display: none;
 }
 
 .overlay-shell .direct-answer p {
@@ -496,9 +501,9 @@ footer span::before {
 }
 
 .overlay-shell details {
-  padding: 9px 0;
+  padding: 7px 0;
   color: var(--overlay-text-color);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .overlay-shell summary {
@@ -513,7 +518,7 @@ footer span::before {
 .overlay-shell pre {
   max-height: 150px;
   color: var(--overlay-text-color);
-  background: rgba(var(--overlay-field-rgb), var(--overlay-field-opacity));
+  background: rgba(var(--overlay-field-rgb), calc(var(--overlay-field-opacity) * 0.36));
   font-size: 12px;
 }
 

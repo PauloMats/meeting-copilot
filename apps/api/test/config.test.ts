@@ -12,4 +12,24 @@ describe("loadConfig", () => {
     expect(config.OPENAI_API_KEY).toBeUndefined();
     expect(config.OPENAI_VECTOR_STORE_ID).toBeUndefined();
   });
+
+  it("uses Railway PORT when API_PORT is not set", () => {
+    const config = loadConfig({
+      NODE_ENV: "test",
+      PORT: "8080"
+    });
+
+    expect(config.API_HOST).toBe("0.0.0.0");
+    expect(config.API_PORT).toBe(8080);
+  });
+
+  it("prefers explicit API_PORT over PORT", () => {
+    const config = loadConfig({
+      NODE_ENV: "test",
+      API_PORT: "3333",
+      PORT: "8080"
+    });
+
+    expect(config.API_PORT).toBe(3333);
+  });
 });

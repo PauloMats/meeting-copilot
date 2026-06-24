@@ -1,6 +1,7 @@
 import {
   IPC_CHANNELS,
   type CopilotApi,
+  type AppSettings,
   type CaptureState,
   type TranscriptDelta,
   type TranscriptFinal
@@ -44,6 +45,7 @@ const api: CopilotApi = {
   events: {
     onHotkeyPressed: (listener) => subscribeSignal(IPC_CHANNELS.hotkeyPressed, listener),
     onHotkeyReleased: (listener) => subscribeSignal(IPC_CHANNELS.hotkeyReleased, listener),
+    onSettingsChanged: (listener) => subscribe<AppSettings>(IPC_CHANNELS.settingsChanged, listener),
     onStateChanged: (listener) => subscribe<CaptureState>(IPC_CHANNELS.stateChanged, listener),
     onTranscriptDelta: (listener) =>
       subscribe<TranscriptDelta>(IPC_CHANNELS.transcriptDelta, listener),

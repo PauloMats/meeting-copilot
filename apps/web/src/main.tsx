@@ -2,29 +2,35 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
+const links = {
+  releases: "https://github.com/PauloMats/meeting-copilot/releases/latest",
+  github: "https://github.com/PauloMats/meeting-copilot",
+  contact: "mailto:pm.mats98@gmail.com?subject=Meeting%20Copilot"
+};
+
 const features = [
   {
-    title: "Push-to-talk, not continuous recording",
-    body: "Capture only when you hold the hotkey. Audio is processed in memory and is not saved by default."
+    title: "Push-to-talk",
+    body: "O app escuta somente enquanto você segura a hotkey. Menos ruído, menos custo e mais controle durante a reunião."
   },
   {
-    title: "Desktop audio + optional microphone",
-    body: "Listen to the meeting audio and optionally mix your microphone when you need both sides of the conversation."
+    title: "Áudio da reunião + microfone",
+    body: "Captura o áudio da tela/janela e pode incluir o microfone quando você quiser mandar também o seu lado da conversa."
   },
   {
-    title: "Invisible meeting overlay",
-    body: "Keep a compact transparent overlay over Teams, Meet, Zoom or any technical discussion."
+    title: "Overlay discreto",
+    body: "Use por cima do Teams, Meet ou Zoom com uma interface compacta para transcrição, status e resposta da IA."
   },
   {
-    title: "Structured technical answers",
-    body: "Direct answer first, then explanation, example, assumptions and confidence."
+    title: "Respostas rápidas",
+    body: "Resposta direta primeiro, depois contexto curto e exemplo prático. Feito para desbloquear conversas, não escrever TCC."
   }
 ];
 
 const steps = [
-  "Hold the hotkey while someone asks a question.",
-  "Meeting Copilot transcribes the audio in realtime.",
-  "Release the key and receive a short, useful answer."
+  "Instale o app Windows e configure a URL da API.",
+  "Segure a hotkey enquanto alguém faz uma pergunta técnica.",
+  "Solte a tecla e receba uma resposta curta para usar na conversa."
 ];
 
 function App() {
@@ -36,35 +42,37 @@ function App() {
           Meeting Copilot
         </a>
         <div className="nav-links">
-          <a href="#features">Features</a>
-          <a href="#security">Security</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#features">Recursos</a>
+          <a href="#download">Download</a>
+          <a href="#security">Privacidade</a>
         </div>
-        <a className="nav-cta" href="mailto:pm.mats98@gmail.com?subject=Meeting%20Copilot">
-          Request access
+        <a className="nav-cta" href={links.releases}>
+          Baixar app
         </a>
       </nav>
 
       <section id="top" className="hero">
         <div className="hero-copy">
-          <p className="eyebrow">PRIVATE AI COPILOT FOR TECHNICAL MEETINGS</p>
-          <h1>Answer technical questions without breaking the conversation.</h1>
+          <p className="eyebrow">AI COPILOT PARA REUNIÕES TÉCNICAS</p>
+          <h1>Responda perguntas técnicas sem travar a conversa.</h1>
           <p className="hero-text">
-            Meeting Copilot is a Windows desktop assistant that listens only while you hold a
-            hotkey, transcribes meeting audio, and returns concise AI-generated technical answers.
+            Meeting Copilot é um app desktop para Windows que transcreve áudio da reunião sob
+            demanda e gera respostas rápidas com IA para entrevistas, calls técnicas e discussões
+            de arquitetura.
           </p>
           <div className="hero-actions">
-            <a className="primary" href="mailto:pm.mats98@gmail.com?subject=Meeting%20Copilot%20demo">
-              Book a demo
+            <a className="primary" href={links.releases}>
+              Download para Windows
             </a>
-            <a className="secondary" href="#how-it-works">
-              See how it works
+            <a className="secondary" href={links.github}>
+              Ver no GitHub
             </a>
           </div>
           <div className="proof">
             <span>Windows desktop</span>
-            <span>Realtime transcription</span>
-            <span>Overlay mode</span>
+            <span>Transcrição em tempo real</span>
+            <span>Modo overlay</span>
+            <span>Backend na nuvem</span>
           </div>
         </div>
 
@@ -95,8 +103,8 @@ function App() {
       </section>
 
       <section id="features" className="section">
-        <p className="eyebrow">WHAT IT DOES</p>
-        <h2>A focused copilot for people who need speed, not another meeting bot.</h2>
+        <p className="eyebrow">O QUE ELE FAZ</p>
+        <h2>Um copiloto focado em velocidade, não em virar mais um bot de reunião.</h2>
         <div className="feature-grid">
           {features.map((feature) => (
             <article className="feature" key={feature.title}>
@@ -107,10 +115,34 @@ function App() {
         </div>
       </section>
 
+      <section id="download" className="section download">
+        <div>
+          <p className="eyebrow">DOWNLOAD</p>
+          <h2>Instale o app desktop e conecte na API hospedada.</h2>
+          <p>
+            Os instaladores ficam no GitHub Releases. Para produção, o desktop usa apenas a URL da
+            API e uma chave de acesso; a chave da OpenAI permanece protegida no backend.
+          </p>
+        </div>
+        <div className="download-card">
+          <span className="platform">Windows x64</span>
+          <h3>Meeting Copilot Desktop</h3>
+          <p>Use o instalador padrão ou a versão portable para testes rápidos em outro PC.</p>
+          <div className="download-actions">
+            <a className="primary" href={links.releases}>
+              Abrir downloads
+            </a>
+            <a className="secondary compact" href={links.github}>
+              Código-fonte
+            </a>
+          </div>
+        </div>
+      </section>
+
       <section id="how-it-works" className="section split">
         <div>
-          <p className="eyebrow">FLOW</p>
-          <h2>Built for fast, silent assistance during live calls.</h2>
+          <p className="eyebrow">FLUXO</p>
+          <h2>Feito para assistência rápida e silenciosa durante calls ao vivo.</h2>
         </div>
         <ol className="steps">
           {steps.map((step) => (
@@ -120,25 +152,25 @@ function App() {
       </section>
 
       <section id="security" className="section security">
-        <p className="eyebrow">SECURITY DEFAULTS</p>
-        <h2>Designed to be explicit, private and controllable.</h2>
+        <p className="eyebrow">PRIVACIDADE</p>
+        <h2>Arquitetura explícita, controlável e simples de operar.</h2>
         <p>
-          The desktop app uses push-to-talk, keeps provider credentials in the backend, requests
-          short-lived transcription credentials, and does not persist audio by default.
+          O desktop usa push-to-talk, mantém credenciais sensíveis no backend, solicita credenciais
+          temporárias para transcrição e não salva áudio por padrão.
         </p>
       </section>
 
       <section id="pricing" className="section pricing">
         <div>
-          <p className="eyebrow">EARLY ACCESS</p>
-          <h2>Start with a private pilot.</h2>
+          <p className="eyebrow">SAAS</p>
+          <h2>Pronto para piloto privado.</h2>
           <p>
-            We are validating the desktop workflow with engineering teams and technical operators.
-            Pricing can be per-seat or private deployment depending on data requirements.
+            A versão atual já separa desktop, API e banco. O próximo passo comercial é adicionar
+            autenticação por usuário, billing e controle de limite por workspace.
           </p>
         </div>
-        <a className="primary" href="mailto:pm.mats98@gmail.com?subject=Meeting%20Copilot%20pilot">
-          Talk about a pilot
+        <a className="primary" href={links.contact}>
+          Falar sobre piloto
         </a>
       </section>
     </main>

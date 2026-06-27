@@ -1,4 +1,4 @@
-import type OpenAI from "openai";
+import type { OpenAI } from "openai";
 import type { RetrievalProvider, RetrievalQuery, RetrievedSnippet } from "./types.js";
 
 export class NullRetrievalProvider implements RetrievalProvider {

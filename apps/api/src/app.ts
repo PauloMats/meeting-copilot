@@ -12,7 +12,7 @@ import {
 } from "@meeting-copilot/contracts";
 import { createDatabase } from "@meeting-copilot/database";
 import Fastify, { type FastifyInstance } from "fastify";
-import OpenAI from "openai";
+import { OpenAI } from "openai";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { AppConfig } from "./config.js";

@@ -6,7 +6,7 @@ import {
   type GlossaryTerm,
   type IntelligenceLevel
 } from "@meeting-copilot/contracts";
-import type OpenAI from "openai";
+import type { OpenAI } from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { GlossaryNormalizer } from "../glossary/normalizer.js";
 import type { RetrievalProvider } from "../retrieval/types.js";

@@ -14,17 +14,28 @@ https://github.com/PauloMats/meeting-copilot/releases/latest
 
 ## Vercel settings
 
-Create a new Vercel project from the GitHub repository and use:
+Create a new Vercel project from the GitHub repository.
+
+The repository has a root `vercel.json`, so the safest setup is:
 
 ```text
-Framework Preset: Vite
-Root Directory: apps/web
-Build Command: pnpm build
-Output Directory: dist
+Framework Preset: Other
+Root Directory: /
+Build Command: pnpm --filter @meeting-copilot/web build
+Output Directory: apps/web/dist
 Install Command: pnpm install --frozen-lockfile
 ```
 
 The app is static and does not require environment variables for the first landing page version.
+
+If Vercel is configured with `Root Directory: apps/web`, then use:
+
+```text
+Framework Preset: Vite
+Build Command: pnpm build
+Output Directory: dist
+Install Command: pnpm install --frozen-lockfile
+```
 
 ## Release flow for desktop downloads
 
@@ -40,4 +51,3 @@ pnpm desktop:dist:win:installer
    - `apps/desktop/release/Meeting Copilot-*-setup-x64.exe`
    - `apps/desktop/release/Meeting Copilot-*-portable-x64.exe`
 4. Keep the website CTA pointing to the latest release URL.
-

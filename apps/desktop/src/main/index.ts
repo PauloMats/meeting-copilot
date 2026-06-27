@@ -360,7 +360,10 @@ async function bootstrap(): Promise<void> {
 
   const settingsService = new SettingsService();
   currentSettingsService = settingsService;
-  const apiClient = new ApiClient(process.env.API_BASE_URL ?? "http://127.0.0.1:3333");
+  const apiClient = new ApiClient(
+    process.env.API_BASE_URL ?? "http://127.0.0.1:3333",
+    process.env.DESKTOP_API_KEY
+  );
   const transcription = new RealtimeTranscriptionService(apiClient, {
     state: (state: CaptureState) => send(IPC_CHANNELS.stateChanged, state),
     delta: (event) => send(IPC_CHANNELS.transcriptDelta, event),

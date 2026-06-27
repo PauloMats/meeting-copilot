@@ -8,7 +8,10 @@ import {
 } from "@meeting-copilot/contracts";
 
 export class ApiClient {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly desktopApiKey?: string
+  ) {}
 
   createRealtimeToken(request: RealtimeTokenRequest): Promise<RealtimeTokenResponse> {
     return this.post("/api/realtime/token", request, (value) =>
@@ -21,9 +24,11 @@ export class ApiClient {
   }
 
   private async post<T>(path: string, body: unknown, parse: (value: unknown) => T): Promise<T> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (this.desktopApiKey) headers["x-meeting-copilot-key"] = this.desktopApiKey;
     const response = await fetch(`${this.baseUrl}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(60_000)
     });

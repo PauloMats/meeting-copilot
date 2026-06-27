@@ -38,4 +38,26 @@ describe("api", () => {
     expect(response.statusCode).toBe(400);
     await app.close();
   });
+
+  it("requires the desktop API key when configured", async () => {
+    const app = await buildApp(
+      loadConfig({ NODE_ENV: "test", LOG_LEVEL: "silent", DESKTOP_API_KEY: "secret" })
+    );
+
+    const unauthorized = await app.inject({
+      method: "POST",
+      url: "/api/realtime/token",
+      payload: { language: "en", delay: "low" }
+    });
+    const authorized = await app.inject({
+      method: "POST",
+      url: "/api/realtime/token",
+      headers: { "x-meeting-copilot-key": "secret" },
+      payload: { language: "en", delay: "low" }
+    });
+
+    expect(unauthorized.statusCode).toBe(401);
+    expect(authorized.statusCode).toBe(503);
+    await app.close();
+  });
 });

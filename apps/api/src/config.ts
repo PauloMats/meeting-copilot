@@ -15,6 +15,7 @@ const ConfigSchema = z.object({
     z.string().url().optional()
   ),
   APP_USER_EMAIL: z.string().email().default("local@meeting-copilot.invalid"),
+  DESKTOP_API_KEY: optionalNonEmptyString,
   OPENAI_API_KEY: optionalNonEmptyString,
   OPENAI_ANSWER_MODEL: z.string().default("gpt-5.4-nano"),
   OPENAI_ANSWER_MODEL_BASIC: z.string().default("gpt-5.4-nano"),
@@ -41,6 +42,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     API_HOST: config.API_HOST,
     DATABASE_URL: config.DATABASE_URL,
     APP_USER_EMAIL: config.APP_USER_EMAIL,
+    DESKTOP_API_KEY: config.DESKTOP_API_KEY,
     OPENAI_API_KEY: config.OPENAI_API_KEY,
     OPENAI_ANSWER_MODEL: config.OPENAI_ANSWER_MODEL,
     OPENAI_ANSWER_MODEL_BASIC: config.OPENAI_ANSWER_MODEL_BASIC,

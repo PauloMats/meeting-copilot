@@ -46,6 +46,12 @@ export async function buildApp(
   await app.register(multipart, {
     limits: { fileSize: 25 * 1024 * 1024, files: 1 }
   });
+  app.addHook("preHandler", async (request, reply) => {
+    if (!config.DESKTOP_API_KEY || request.url === "/api/health") return;
+    if (request.headers["x-meeting-copilot-key"] !== config.DESKTOP_API_KEY) {
+      return reply.code(401).send({ message: "Unauthorized" });
+    }
+  });
 
   const database = config.DATABASE_URL ? createDatabase(config.DATABASE_URL) : null;
   const contextRepository =

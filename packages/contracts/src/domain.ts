@@ -19,6 +19,9 @@ export type TranscriptionDelay = z.infer<typeof TranscriptionDelaySchema>;
 export const OverlayTextThemeSchema = z.enum(["light", "dark"]);
 export type OverlayTextTheme = z.infer<typeof OverlayTextThemeSchema>;
 
+export const IntelligenceLevelSchema = z.enum(["basic", "balanced", "advanced"]);
+export type IntelligenceLevel = z.infer<typeof IntelligenceLevelSchema>;
+
 export const ConfidenceSchema = z.enum(["high", "medium", "low"]);
 
 export const AnswerSchema = z.object({
@@ -61,6 +64,7 @@ export const AppSettingsSchema = z.object({
   transcriptRetentionDays: z.number().int().min(0).max(3650).default(30),
   audioRetentionDays: z.number().int().min(0).max(365).default(0),
   transcriptionDelay: TranscriptionDelaySchema.default("minimal"),
+  intelligenceLevel: IntelligenceLevelSchema.default("basic"),
   language: z.string().min(2).max(10).default("en"),
   overlayEnabled: z.boolean().default(false),
   overlayOpacity: z.number().min(0.08).max(0.92).default(0.58),

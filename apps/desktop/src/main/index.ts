@@ -124,6 +124,11 @@ function buildApplicationMenu(settings: AppSettings): void {
     { label: "Français", language: "fr" },
     { label: "Italiano", language: "it" }
   ];
+  const intelligenceOptions: Array<{ label: string; value: AppSettings["intelligenceLevel"] }> = [
+    { label: "Basic - fastest / cheapest", value: "basic" },
+    { label: "Balanced - better answers", value: "balanced" },
+    { label: "Advanced - highest quality", value: "advanced" }
+  ];
   const hotkeys = ["Space", "F8", "F9", "F10"];
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac()
@@ -186,6 +191,17 @@ function buildApplicationMenu(settings: AppSettings): void {
           }
         },
         { type: "separator" },
+        {
+          label: "Intelligence",
+          submenu: intelligenceOptions.map(({ label, value }) => ({
+            label,
+            type: "radio" as const,
+            checked: settings.intelligenceLevel === value,
+            click: () => {
+              applySettingsPatch({ intelligenceLevel: value });
+            }
+          }))
+        },
         {
           label: "Language",
           submenu: languageOptions.map(({ label, language }) => ({

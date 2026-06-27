@@ -3,7 +3,8 @@ import {
   AnswerSchema,
   AppSettingsSchema,
   ContextProfileSchema,
-  GlossaryTermSchema
+  GlossaryTermSchema,
+  IntelligenceLevelSchema
 } from "./domain.js";
 
 export const RealtimeTokenRequestSchema = z.object({
@@ -19,6 +20,7 @@ export const RealtimeTokenResponseSchema = z.object({
 
 export const AnswerRequestSchema = z.object({
   transcript: z.string().min(1).max(50_000),
+  intelligenceLevel: IntelligenceLevelSchema.default("basic"),
   contextProfileId: z.string().uuid().nullable().default(null),
   meetingMemory: z
     .array(
@@ -33,6 +35,8 @@ export const AnswerRequestSchema = z.object({
 
 export const AnswerResponseSchema = z.object({
   answer: AnswerSchema,
+  model: z.string(),
+  intelligenceLevel: IntelligenceLevelSchema,
   rawTranscript: z.string(),
   normalizedTranscript: z.string(),
   retrievedSnippets: z.array(

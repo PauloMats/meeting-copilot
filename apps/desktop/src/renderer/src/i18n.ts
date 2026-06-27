@@ -19,6 +19,10 @@ type Messages = {
   language: string;
   hotkey: string;
   accuracy: string;
+  intelligence: string;
+  intelligenceBasic: string;
+  intelligenceBalanced: string;
+  intelligenceAdvanced: string;
   fastest: string;
   fast: string;
   balanced: string;
@@ -65,6 +69,10 @@ const messages: Record<UiLanguage, Messages> = {
     language: "Idioma",
     hotkey: "Atalho",
     accuracy: "Precisão",
+    intelligence: "Inteligência",
+    intelligenceBasic: "Básico",
+    intelligenceBalanced: "Médio",
+    intelligenceAdvanced: "Avançado",
     fastest: "Mais rápido",
     fast: "Rápido",
     balanced: "Balanceado",
@@ -117,6 +125,10 @@ const messages: Record<UiLanguage, Messages> = {
     language: "Language",
     hotkey: "Hotkey",
     accuracy: "Accuracy",
+    intelligence: "Intelligence",
+    intelligenceBasic: "Basic",
+    intelligenceBalanced: "Balanced",
+    intelligenceAdvanced: "Advanced",
     fastest: "Fastest",
     fast: "Fast",
     balanced: "Balanced",
@@ -169,6 +181,10 @@ const messages: Record<UiLanguage, Messages> = {
     language: "Idioma",
     hotkey: "Atajo",
     accuracy: "Precisión",
+    intelligence: "Inteligencia",
+    intelligenceBasic: "Básico",
+    intelligenceBalanced: "Medio",
+    intelligenceAdvanced: "Avanzado",
     fastest: "Más rápido",
     fast: "Rápido",
     balanced: "Balanceado",
@@ -221,6 +237,10 @@ const messages: Record<UiLanguage, Messages> = {
     language: "Язык",
     hotkey: "Горячая клавиша",
     accuracy: "Точность",
+    intelligence: "Интеллект",
+    intelligenceBasic: "Базовый",
+    intelligenceBalanced: "Средний",
+    intelligenceAdvanced: "Продвинутый",
     fastest: "Самый быстрый",
     fast: "Быстро",
     balanced: "Баланс",
@@ -273,6 +293,10 @@ const messages: Record<UiLanguage, Messages> = {
     language: "Langue",
     hotkey: "Raccourci",
     accuracy: "Précision",
+    intelligence: "Intelligence",
+    intelligenceBasic: "Basique",
+    intelligenceBalanced: "Moyen",
+    intelligenceAdvanced: "Avancé",
     fastest: "Le plus rapide",
     fast: "Rapide",
     balanced: "Équilibré",
@@ -326,6 +350,10 @@ const messages: Record<UiLanguage, Messages> = {
     language: "Lingua",
     hotkey: "Scorciatoia",
     accuracy: "Precisione",
+    intelligence: "Intelligenza",
+    intelligenceBasic: "Base",
+    intelligenceBalanced: "Medio",
+    intelligenceAdvanced: "Avanzato",
     fastest: "Più veloce",
     fast: "Veloce",
     balanced: "Bilanciato",

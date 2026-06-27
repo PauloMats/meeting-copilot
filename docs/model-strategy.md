@@ -7,6 +7,9 @@ the product goal: low-latency answers for live technical meetings.
 
 ```env
 OPENAI_ANSWER_MODEL=gpt-5.4-nano
+OPENAI_ANSWER_MODEL_BASIC=gpt-5.4-nano
+OPENAI_ANSWER_MODEL_BALANCED=gpt-5.4-mini
+OPENAI_ANSWER_MODEL_ADVANCED=gpt-5.4
 OPENAI_ANSWER_MAX_OUTPUT_TOKENS=520
 OPENAI_ANSWER_CONTEXT_CHARS=6000
 OPENAI_RETRIEVAL_LIMIT=0
@@ -22,6 +25,25 @@ Rationale:
   Realtime transcription sessions and live deltas.
 - Retrieval is disabled by default for speed. Enable it only when project-specific knowledge is
   worth the extra API latency.
+
+## Desktop intelligence levels
+
+The desktop app sends an `intelligenceLevel` with every answer request:
+
+| Level | Default model | Behavior |
+| --- | --- | --- |
+| Basic | `gpt-5.4-nano` | Lowest latency/cost, shortest context, no retrieval unless globally enabled. Best for live meetings. |
+| Balanced | `gpt-5.4-mini` | Better answer quality, more context, enables small retrieval when retrieval is configured. |
+| Advanced | `gpt-5.4` | Highest quality preset, larger answer/context budget, medium reasoning effort. Use when speed is less important. |
+
+The environment variables below can override the model behind each level without requiring a new
+desktop build:
+
+```env
+OPENAI_ANSWER_MODEL_BASIC=gpt-5.4-nano
+OPENAI_ANSWER_MODEL_BALANCED=gpt-5.4-mini
+OPENAI_ANSWER_MODEL_ADVANCED=gpt-5.4
+```
 
 ## Recommended overrides
 

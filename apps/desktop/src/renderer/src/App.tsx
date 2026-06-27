@@ -112,6 +112,22 @@ export function App() {
                 <option value="xhigh">{t.mostAccurate}</option>
               </select>
             </label>
+            <label className="field">
+              {t.intelligence}
+              <select
+                value={copilot.settings.intelligenceLevel}
+                onChange={(event) =>
+                  void copilot.updateSettings({
+                    intelligenceLevel:
+                      event.target.value as typeof copilot.settings.intelligenceLevel
+                  })
+                }
+              >
+                <option value="basic">{t.intelligenceBasic}</option>
+                <option value="balanced">{t.intelligenceBalanced}</option>
+                <option value="advanced">{t.intelligenceAdvanced}</option>
+              </select>
+            </label>
             <label className="switch">
               <input
                 type="checkbox"

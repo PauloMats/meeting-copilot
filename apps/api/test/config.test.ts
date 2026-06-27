@@ -37,6 +37,9 @@ describe("loadConfig", () => {
     const config = loadConfig({ NODE_ENV: "test" });
 
     expect(config.OPENAI_ANSWER_MODEL).toBe("gpt-5.4-nano");
+    expect(config.OPENAI_ANSWER_MODEL_BASIC).toBe("gpt-5.4-nano");
+    expect(config.OPENAI_ANSWER_MODEL_BALANCED).toBe("gpt-5.4-mini");
+    expect(config.OPENAI_ANSWER_MODEL_ADVANCED).toBe("gpt-5.4");
     expect(config.OPENAI_ANSWER_MAX_OUTPUT_TOKENS).toBe(520);
     expect(config.OPENAI_ANSWER_CONTEXT_CHARS).toBe(6000);
     expect(config.OPENAI_RETRIEVAL_LIMIT).toBe(0);

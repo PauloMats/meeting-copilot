@@ -65,6 +65,7 @@ export function useCopilot() {
       try {
         const response = await window.copilot.backend.generateAnswer({
           transcript: trimmed,
+          intelligenceLevel: settings.intelligenceLevel,
           contextProfileId: settings.selectedContextProfileId,
           meetingMemory: []
         });
@@ -75,7 +76,7 @@ export function useCopilot() {
         setState("error");
       }
     },
-    [settings.selectedContextProfileId]
+    [settings.intelligenceLevel, settings.selectedContextProfileId]
   );
 
   useEffect(() => {

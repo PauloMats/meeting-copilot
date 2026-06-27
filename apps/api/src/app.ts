@@ -75,11 +75,21 @@ export async function buildApp(
         )
       : new NullRetrievalProvider();
   const answerService = openai
-    ? new AnswerService(openai, config.OPENAI_ANSWER_MODEL, contextRepository, retrieval, {
-        maxOutputTokens: config.OPENAI_ANSWER_MAX_OUTPUT_TOKENS,
-        contextChars: config.OPENAI_ANSWER_CONTEXT_CHARS,
-        retrievalLimit: config.OPENAI_RETRIEVAL_LIMIT
-      })
+    ? new AnswerService(
+        openai,
+        {
+          basic: config.OPENAI_ANSWER_MODEL_BASIC || config.OPENAI_ANSWER_MODEL,
+          balanced: config.OPENAI_ANSWER_MODEL_BALANCED,
+          advanced: config.OPENAI_ANSWER_MODEL_ADVANCED
+        },
+        contextRepository,
+        retrieval,
+        {
+          maxOutputTokens: config.OPENAI_ANSWER_MAX_OUTPUT_TOKENS,
+          contextChars: config.OPENAI_ANSWER_CONTEXT_CHARS,
+          retrievalLimit: config.OPENAI_RETRIEVAL_LIMIT
+        }
+      )
     : null;
 
   app.get("/api/health", () => ({

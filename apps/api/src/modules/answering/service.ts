@@ -3,7 +3,8 @@ import {
   type AnswerRequest,
   type AnswerResponse,
   type ContextProfile,
-  type GlossaryTerm
+  type GlossaryTerm,
+  type IntelligenceLevel
 } from "@meeting-copilot/contracts";
 import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -18,14 +19,10 @@ export interface AnswerContextRepository {
 export class AnswerService {
   constructor(
     private readonly openai: OpenAI,
-    private readonly model: string,
+    private readonly models: Record<IntelligenceLevel, string>,
     private readonly contextRepository: AnswerContextRepository,
     private readonly retrieval: RetrievalProvider,
-    private readonly options: {
-      maxOutputTokens: number;
-      contextChars: number;
-      retrievalLimit: number;
-    },
+    private readonly baseOptions: AnswerOptions,
     private readonly normalizer = new GlossaryNormalizer()
   ) {}
 
@@ -35,12 +32,14 @@ export class AnswerService {
       this.contextRepository.listGlossaryTerms()
     ]);
     const normalized = this.normalizer.normalize(request.transcript, glossaryTerms);
+    const preset = getPreset(request.intelligenceLevel, this.baseOptions);
+    const model = this.models[request.intelligenceLevel];
     const snippets =
-      this.options.retrievalLimit > 0
+      preset.retrievalLimit > 0
         ? await this.retrieval.search({
             query: normalized.normalized,
             contextProfileId: request.contextProfileId,
-            limit: this.options.retrievalLimit
+            limit: preset.retrievalLimit
           })
         : [];
     const compactSnippets = snippets.map((snippet) => ({
@@ -51,10 +50,10 @@ export class AnswerService {
     }));
 
     const response = await this.openai.responses.parse({
-      model: this.model,
+      model,
       store: false,
-      reasoning: { effort: "low" },
-      max_output_tokens: this.options.maxOutputTokens,
+      reasoning: { effort: preset.reasoningEffort },
+      max_output_tokens: preset.maxOutputTokens,
       input: [
         {
           role: "system",
@@ -66,9 +65,9 @@ export class AnswerService {
         {
           role: "user",
           content: JSON.stringify({
-            finalized_transcript: truncate(request.transcript, this.options.contextChars),
-            normalized_transcript: truncate(normalized.normalized, this.options.contextChars),
-            trailing_meeting_memory: request.meetingMemory.slice(-3),
+            finalized_transcript: truncate(request.transcript, preset.contextChars),
+            normalized_transcript: truncate(normalized.normalized, preset.contextChars),
+            trailing_meeting_memory: request.meetingMemory.slice(-preset.memoryTurns),
             context_profile: profile ? compactProfile(profile) : null,
             retrieved_knowledge: compactSnippets
           })
@@ -85,6 +84,8 @@ export class AnswerService {
 
     return {
       answer: AnswerSchema.parse(response.output_parsed),
+      model,
+      intelligenceLevel: request.intelligenceLevel,
       rawTranscript: normalized.original,
       normalizedTranscript: normalized.normalized,
       retrievedSnippets: snippets
@@ -107,5 +108,44 @@ function compactProfile(profile: ContextProfile): Pick<
     projectDescription: truncate(profile.projectDescription, 1200),
     techStack: profile.techStack.slice(0, 20),
     businessContext: truncate(profile.businessContext, 1200)
+  };
+}
+
+type AnswerOptions = {
+  maxOutputTokens: number;
+  contextChars: number;
+  retrievalLimit: number;
+};
+
+type AnswerPreset = AnswerOptions & {
+  reasoningEffort: "minimal" | "low" | "medium";
+  memoryTurns: number;
+};
+
+function getPreset(level: IntelligenceLevel, base: AnswerOptions): AnswerPreset {
+  if (level === "advanced") {
+    return {
+      maxOutputTokens: Math.max(base.maxOutputTokens, 900),
+      contextChars: Math.max(base.contextChars, 10000),
+      retrievalLimit: Math.max(base.retrievalLimit, 3),
+      reasoningEffort: "medium",
+      memoryTurns: 5
+    };
+  }
+  if (level === "balanced") {
+    return {
+      maxOutputTokens: Math.max(base.maxOutputTokens, 700),
+      contextChars: Math.max(base.contextChars, 8000),
+      retrievalLimit: Math.max(base.retrievalLimit, 1),
+      reasoningEffort: "low",
+      memoryTurns: 4
+    };
+  }
+  return {
+    maxOutputTokens: base.maxOutputTokens,
+    contextChars: base.contextChars,
+    retrievalLimit: base.retrievalLimit,
+    reasoningEffort: "minimal",
+    memoryTurns: 3
   };
 }

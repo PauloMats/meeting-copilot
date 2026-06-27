@@ -60,7 +60,7 @@ export const AppSettingsSchema = z.object({
   doNotSaveAudio: z.boolean().default(true),
   transcriptRetentionDays: z.number().int().min(0).max(3650).default(30),
   audioRetentionDays: z.number().int().min(0).max(365).default(0),
-  transcriptionDelay: TranscriptionDelaySchema.default("low"),
+  transcriptionDelay: TranscriptionDelaySchema.default("minimal"),
   language: z.string().min(2).max(10).default("en"),
   overlayEnabled: z.boolean().default(false),
   overlayOpacity: z.number().min(0.08).max(0.92).default(0.58),

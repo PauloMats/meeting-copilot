@@ -16,6 +16,7 @@ export function useCopilot() {
   const capture = useRef(new AudioCapture());
   const transcriptRef = useRef("");
   const startInFlight = useRef(false);
+  const transcriptFrame = useRef<number | null>(null);
 
   useEffect(() => {
     void window.copilot.settings.get().then(setSettings);
@@ -85,9 +86,18 @@ export function useCopilot() {
       window.copilot.events.onStateChanged(setState),
       window.copilot.events.onTranscriptDelta(({ delta }) => {
         transcriptRef.current += delta;
-        setTranscript(transcriptRef.current);
+        if (transcriptFrame.current === null) {
+          transcriptFrame.current = window.requestAnimationFrame(() => {
+            transcriptFrame.current = null;
+            setTranscript(transcriptRef.current);
+          });
+        }
       }),
       window.copilot.events.onTranscriptFinal(({ transcript: finalTranscript }) => {
+        if (transcriptFrame.current !== null) {
+          window.cancelAnimationFrame(transcriptFrame.current);
+          transcriptFrame.current = null;
+        }
         transcriptRef.current = finalTranscript;
         setTranscript(finalTranscript);
         if (settings.autoSubmit) void submit(finalTranscript);
@@ -97,7 +107,13 @@ export function useCopilot() {
         setState("error");
       })
     ];
-    return () => unsubscribe.forEach((dispose) => dispose());
+    return () => {
+      if (transcriptFrame.current !== null) {
+        window.cancelAnimationFrame(transcriptFrame.current);
+        transcriptFrame.current = null;
+      }
+      unsubscribe.forEach((dispose) => dispose());
+    };
   }, [settings.autoSubmit, startTurn, stopTurn, submit]);
 
   const updateSettings = async (patch: Partial<AppSettings>) => {

@@ -21,6 +21,11 @@ export class AnswerService {
     private readonly model: string,
     private readonly contextRepository: AnswerContextRepository,
     private readonly retrieval: RetrievalProvider,
+    private readonly options: {
+      maxOutputTokens: number;
+      contextChars: number;
+      retrievalLimit: number;
+    },
     private readonly normalizer = new GlossaryNormalizer()
   ) {}
 
@@ -30,31 +35,42 @@ export class AnswerService {
       this.contextRepository.listGlossaryTerms()
     ]);
     const normalized = this.normalizer.normalize(request.transcript, glossaryTerms);
-    const snippets = await this.retrieval.search({
-      query: normalized.normalized,
-      contextProfileId: request.contextProfileId,
-      limit: 6
-    });
+    const snippets =
+      this.options.retrievalLimit > 0
+        ? await this.retrieval.search({
+            query: normalized.normalized,
+            contextProfileId: request.contextProfileId,
+            limit: this.options.retrievalLimit
+          })
+        : [];
+    const compactSnippets = snippets.map((snippet) => ({
+      id: snippet.id,
+      source: snippet.source,
+      score: snippet.score,
+      content: truncate(snippet.content, 900)
+    }));
 
     const response = await this.openai.responses.parse({
       model: this.model,
       store: false,
       reasoning: { effort: "low" },
+      max_output_tokens: this.options.maxOutputTokens,
       input: [
         {
           role: "system",
           content:
-            "You are a silent technical meeting copilot. Answer the question directly and concisely. " +
-            "Use supplied context when relevant, clearly state assumptions, and never invent project facts."
+            "You are a fast silent technical meeting copilot. Return a short practical answer in the same language as the transcript. " +
+            "Prioritize speed over depth. Keep direct_answer under 90 words, detailed_explanation under 140 words, and example minimal. " +
+            "If uncertain, state the assumption briefly. Do not produce long research-style answers."
         },
         {
           role: "user",
           content: JSON.stringify({
-            finalized_transcript: request.transcript,
-            normalized_transcript: normalized.normalized,
-            trailing_meeting_memory: request.meetingMemory,
-            context_profile: profile,
-            retrieved_knowledge: snippets
+            finalized_transcript: truncate(request.transcript, this.options.contextChars),
+            normalized_transcript: truncate(normalized.normalized, this.options.contextChars),
+            trailing_meeting_memory: request.meetingMemory.slice(-3),
+            context_profile: profile ? compactProfile(profile) : null,
+            retrieved_knowledge: compactSnippets
           })
         }
       ],
@@ -74,4 +90,22 @@ export class AnswerService {
       retrievedSnippets: snippets
     };
   }
+}
+
+function truncate(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value;
+  return `${value.slice(0, Math.max(0, maxChars - 1))}…`;
+}
+
+function compactProfile(profile: ContextProfile): Pick<
+  ContextProfile,
+  "id" | "name" | "projectDescription" | "techStack" | "businessContext"
+> {
+  return {
+    id: profile.id,
+    name: profile.name,
+    projectDescription: truncate(profile.projectDescription, 1200),
+    techStack: profile.techStack.slice(0, 20),
+    businessContext: truncate(profile.businessContext, 1200)
+  };
 }

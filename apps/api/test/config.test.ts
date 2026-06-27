@@ -32,4 +32,13 @@ describe("loadConfig", () => {
 
     expect(config.API_PORT).toBe(3333);
   });
+
+  it("defaults answer generation to fast production settings", () => {
+    const config = loadConfig({ NODE_ENV: "test" });
+
+    expect(config.OPENAI_ANSWER_MODEL).toBe("gpt-5.4-nano");
+    expect(config.OPENAI_ANSWER_MAX_OUTPUT_TOKENS).toBe(520);
+    expect(config.OPENAI_ANSWER_CONTEXT_CHARS).toBe(6000);
+    expect(config.OPENAI_RETRIEVAL_LIMIT).toBe(0);
+  });
 });

@@ -40,10 +40,8 @@ input[type="range"] {
 
 .app-shell {
   min-height: 100vh;
-  padding: 30px;
-  background:
-    radial-gradient(circle at 80% -10%, rgba(54, 197, 173, 0.15), transparent 36%),
-    radial-gradient(circle at -10% 50%, rgba(69, 113, 255, 0.12), transparent 28%), #090d14;
+  padding: 22px;
+  background: #090d14;
 }
 
 .topbar,
@@ -75,7 +73,7 @@ footer {
 h1 {
   max-width: 700px;
   margin: 0;
-  font-size: clamp(24px, 3vw, 38px);
+  font-size: clamp(22px, 2.5vw, 32px);
   line-height: 1.12;
   letter-spacing: -0.035em;
 }
@@ -205,11 +203,11 @@ select {
   display: grid;
   grid-template-columns: minmax(300px, 0.85fr) minmax(380px, 1.15fr);
   gap: 18px;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 .transcript-panel,
 .answer-panel {
-  min-height: 440px;
+  min-height: 380px;
   border: 1px solid #202a39;
   border-radius: 16px;
   background: rgba(12, 18, 27, 0.88);
@@ -228,7 +226,7 @@ select {
 }
 textarea {
   width: 100%;
-  min-height: 330px;
+  min-height: 280px;
   resize: none;
   padding: 16px;
   border: 1px solid #253247;
@@ -270,7 +268,7 @@ button.secondary {
 }
 
 .answer-panel {
-  padding: 24px;
+  padding: 20px;
 }
 .empty-answer {
   display: grid;

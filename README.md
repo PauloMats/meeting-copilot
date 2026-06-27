@@ -33,6 +33,8 @@ docs/
   architecture.md      Flows, boundaries and service map
   development.md       Windows + WSL2 setup
   delivery-checklist.md
+  deployment.md        Railway/backend deployment notes
+  model-strategy.md    OpenAI model defaults and override strategy
 ```
 
 ## Quick start (Windows + WSL2 Ubuntu)

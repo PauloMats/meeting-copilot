@@ -2,7 +2,8 @@ const WORKLET_SOURCE = `
 class PcmCaptureProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.buffer = [];
+    this.buffer = new Int16Array(0);
+    this.chunkSamples = 2400;
   }
   process(inputs) {
     const input = inputs[0] && inputs[0][0];
@@ -18,7 +19,16 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
       const sample = Math.max(-1, Math.min(1, sum / Math.max(1, end - start)));
       pcm[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
     }
-    this.port.postMessage(pcm.buffer, [pcm.buffer]);
+    const merged = new Int16Array(this.buffer.length + pcm.length);
+    merged.set(this.buffer);
+    merged.set(pcm, this.buffer.length);
+    let offset = 0;
+    while (merged.length - offset >= this.chunkSamples) {
+      const chunk = merged.slice(offset, offset + this.chunkSamples);
+      this.port.postMessage(chunk.buffer, [chunk.buffer]);
+      offset += this.chunkSamples;
+    }
+    this.buffer = merged.slice(offset);
     return true;
   }
 }

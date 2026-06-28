@@ -41,8 +41,17 @@ OPENAI_REALTIME_TRANSCRIPTION_MODEL=gpt-realtime-whisper
 RETRIEVAL_PROVIDER=none
 ```
 
-Railway injects `PORT`; the API reads it automatically. The Docker image runs database migrations
-before starting the Fastify server.
+Do not copy these local development variables into Railway:
+
+```env
+API_HOST=127.0.0.1
+API_PORT=3333
+API_BASE_URL=http://127.0.0.1:3333
+```
+
+Railway injects `PORT`; the API reads it automatically and binds to `0.0.0.0` when Railway
+environment variables are present. The Docker image runs database migrations before starting the
+Fastify server.
 
 After deploy, validate:
 

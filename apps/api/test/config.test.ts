@@ -16,6 +16,7 @@ describe("loadConfig", () => {
   it("uses Railway PORT when API_PORT is not set", () => {
     const config = loadConfig({
       NODE_ENV: "test",
+      RAILWAY_ENVIRONMENT: "production",
       PORT: "8080"
     });
 
@@ -23,7 +24,20 @@ describe("loadConfig", () => {
     expect(config.API_PORT).toBe(8080);
   });
 
-  it("prefers explicit API_PORT over PORT", () => {
+  it("uses Railway PORT and public host even when development values are copied", () => {
+    const config = loadConfig({
+      NODE_ENV: "test",
+      RAILWAY_ENVIRONMENT: "production",
+      API_HOST: "127.0.0.1",
+      API_PORT: "3333",
+      PORT: "8080"
+    });
+
+    expect(config.API_HOST).toBe("0.0.0.0");
+    expect(config.API_PORT).toBe(8080);
+  });
+
+  it("prefers explicit API_PORT over PORT outside Railway", () => {
     const config = loadConfig({
       NODE_ENV: "test",
       API_PORT: "3333",

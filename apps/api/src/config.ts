@@ -37,9 +37,14 @@ export type AppConfig = Omit<z.infer<typeof ConfigSchema>, "PORT" | "API_PORT"> 
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppConfig {
   const config = ConfigSchema.parse(environment);
+  const isRailway = Boolean(
+    environment.RAILWAY_ENVIRONMENT ||
+      environment.RAILWAY_PROJECT_ID ||
+      environment.RAILWAY_SERVICE_ID
+  );
   return {
     NODE_ENV: config.NODE_ENV,
-    API_HOST: config.API_HOST,
+    API_HOST: isRailway ? "0.0.0.0" : config.API_HOST,
     DATABASE_URL: config.DATABASE_URL,
     APP_USER_EMAIL: config.APP_USER_EMAIL,
     DESKTOP_API_KEY: config.DESKTOP_API_KEY,
@@ -56,6 +61,6 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     OPENAI_VECTOR_STORE_ID: config.OPENAI_VECTOR_STORE_ID,
     LOG_LEVEL: config.LOG_LEVEL,
     CORS_ORIGIN: config.CORS_ORIGIN,
-    API_PORT: config.API_PORT ?? config.PORT ?? 3333
+    API_PORT: isRailway ? (config.PORT ?? config.API_PORT ?? 3333) : (config.API_PORT ?? config.PORT ?? 3333)
   };
 }

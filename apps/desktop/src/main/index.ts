@@ -12,11 +12,13 @@ import {
   app,
   BrowserWindow,
   desktopCapturer,
+  dialog,
   globalShortcut,
   ipcMain,
   Menu,
   screen,
   session,
+  shell,
   type DesktopCapturerSource
 } from "electron";
 import { existsSync } from "node:fs";
@@ -25,6 +27,7 @@ import { ApiClient } from "./services/api-client.js";
 import { HotkeyService } from "./services/hotkey-service.js";
 import { RealtimeTranscriptionService } from "./services/realtime-transcription-service.js";
 import { SettingsService } from "./services/settings-service.js";
+import { SessionStore } from "./services/session-store.js";
 import { clampBoundsToWorkArea, defaultBoundsForMode } from "./window-state.js";
 
 let mainWindow: BrowserWindow | null = null;
@@ -33,6 +36,7 @@ let currentSettingsService: SettingsService | null = null;
 let currentHotkeyService: HotkeyService | null = null;
 let currentWindowMode: AppWindowMode = "main";
 let currentCaptureState: CaptureState = "idle";
+let currentApiClient: ApiClient | null = null;
 let applyingWindowBounds = false;
 let persistBoundsTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -223,6 +227,12 @@ function buildApplicationMenu(settings: AppSettings): void {
     {
       label: "Tools",
       submenu: [
+        {
+          label: currentApiClient?.isAuthenticated() ? "Account connected" : "Connect account",
+          enabled: !currentApiClient?.isAuthenticated(),
+          click: () => void connectAccount()
+        },
+        { type: "separator" },
         {
           label: "Include microphone",
           type: "checkbox",
@@ -481,10 +491,13 @@ async function bootstrap(): Promise<void> {
 
   const settingsService = new SettingsService();
   currentSettingsService = settingsService;
+  const sessionStore = new SessionStore();
   const apiClient = new ApiClient(
     process.env.API_BASE_URL ?? "http://127.0.0.1:3333",
-    process.env.DESKTOP_API_KEY
+    process.env.DESKTOP_API_KEY,
+    sessionStore
   );
+  currentApiClient = apiClient;
   const transcription = new RealtimeTranscriptionService(apiClient, {
     state: (state: CaptureState) => {
       currentCaptureState = state;
@@ -541,6 +554,50 @@ async function bootstrap(): Promise<void> {
     hotkey.stop();
     globalShortcut.unregisterAll();
   });
+}
+
+async function connectAccount(): Promise<void> {
+  const apiClient = currentApiClient;
+  if (!apiClient) return;
+  try {
+    const authorization = await apiClient.startDeviceAuthorization(
+      process.env.COMPUTERNAME ?? "Windows PC",
+      process.platform
+    );
+    const verificationUrl = new URL(authorization.verificationUri);
+    verificationUrl.searchParams.set("code", authorization.userCode);
+    await shell.openExternal(verificationUrl.toString());
+    void dialog.showMessageBox({
+      type: "info",
+      title: "Connect Meeting Copilot",
+      message: `Enter code ${authorization.userCode} in your browser.`,
+      detail: "This code expires in 10 minutes. The app will connect automatically after approval."
+    });
+    const deadline = Date.now() + authorization.expiresInSeconds * 1_000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, authorization.intervalSeconds * 1_000));
+      const result = await apiClient.pollDeviceAuthorization(authorization.deviceCode);
+      if (result.status === "pending") continue;
+      if (result.status === "authorized") {
+        apiClient.completeDeviceAuthorization(result.session);
+        buildApplicationMenu(currentSettingsService?.get() ?? new SettingsService().get());
+        await dialog.showMessageBox({
+          type: "info",
+          title: "Meeting Copilot connected",
+          message: `Connected as ${result.session.user.email}.`
+        });
+        return;
+      }
+      throw new Error(`Device authorization ended with status: ${result.status}`);
+    }
+    throw new Error("Device authorization expired");
+  } catch (error) {
+    await dialog.showMessageBox({
+      type: "error",
+      title: "Could not connect account",
+      message: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
 }
 
 void app.whenReady().then(bootstrap).catch(console.error);

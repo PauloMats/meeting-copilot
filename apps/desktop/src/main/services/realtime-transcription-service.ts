@@ -4,6 +4,7 @@ import type {
   TranscriptDelta,
   TranscriptFinal
 } from "@meeting-copilot/contracts";
+import { randomUUID } from "node:crypto";
 import WebSocket, { type RawData } from "ws";
 import type { ApiClient } from "./api-client.js";
 
@@ -32,6 +33,8 @@ export class RealtimeTranscriptionService {
   private socket: WebSocket | null = null;
   private committed = false;
   private failed = false;
+  private startedAt: number | null = null;
+  private usageKey: string | null = null;
 
   constructor(
     private readonly apiClient: ApiClient,
@@ -57,6 +60,8 @@ export class RealtimeTranscriptionService {
         this.socket = socket;
         this.committed = false;
         this.failed = false;
+        this.startedAt = Date.now();
+        this.usageKey = `transcription:${randomUUID()}`;
         this.events.state("listening");
         resolve();
       });
@@ -110,6 +115,23 @@ export class RealtimeTranscriptionService {
       return;
     }
     if (event.type === "conversation.item.input_audio_transcription.completed") {
+      const startedAt = this.startedAt;
+      const usageKey = this.usageKey;
+      if (startedAt && usageKey) {
+        void this.apiClient
+          .reportTranscriptionUsage({
+            idempotencyKey: usageKey,
+            audioSeconds: Math.max(1, Math.ceil((Date.now() - startedAt) / 1_000)),
+            occurredAt: new Date(startedAt).toISOString()
+          })
+          .catch((error: unknown) => {
+            this.events.error(
+              error instanceof Error
+                ? `Usage accounting failed: ${error.message}`
+                : "Usage accounting failed"
+            );
+          });
+      }
       this.events.state("ready_to_send");
       this.events.final({ itemId: event.item_id, transcript: event.transcript });
       this.socket?.close(1000, "turn complete");

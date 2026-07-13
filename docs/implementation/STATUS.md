@@ -91,3 +91,35 @@ Date: 2026-07-13
 | Responsive browser QA | Passed for landing, authentication, registration, and device approval |
 
 The browser QA covered 390 × 844 and 1280 × 800 viewports, both color themes, semantic landmarks, persistent form labels, and navigation. The desktop renderer was validated through lint, typecheck, tests, and a production Electron build; native Windows behavior still requires an installed-app smoke test.
+
+## Asset-system audit baseline
+
+Date: 2026-07-13
+Branch: `asset-system-audit`, based on `phase-4-design-system`.
+
+| Check        | Result                                                               |
+| ------------ | -------------------------------------------------------------------- |
+| Format check | Failed: 16 pre-existing lockfile/documentation/metadata files remain |
+| Lint         | Passed                                                               |
+| Typecheck    | Passed                                                               |
+| Tests        | Passed (36 tests)                                                    |
+| Build        | Passed for contracts, database, API, web, and desktop                |
+
+The baseline was captured before creating the asset manifest, validation script, or audit deliverables. No provider calls, production deployments, asset deletions, or business-logic changes were made.
+
+## Asset-system audit validation
+
+Date: 2026-07-13
+
+| Check                          | Result                                                       |
+| ------------------------------ | ------------------------------------------------------------ |
+| Changed source/docs format     | Passed                                                       |
+| `pnpm assets:report`           | Passed; 16 registered, 0 present, 16 intentionally missing   |
+| `pnpm assets:validate`         | Expected failure; correctly blocks the 8 missing P1 assets   |
+| Inventory/manifest consistency | Passed for all 16 IDs, filenames, formats, paths, and limits |
+| Lint                           | Passed                                                       |
+| Typecheck                      | Passed                                                       |
+| Tests                          | Passed (36 tests)                                            |
+| Build                          | Passed for contracts, database, API, web, and desktop        |
+
+No final artwork was invented or downloaded. Runtime image references and Electron icon configuration remain inactive until approved P1 files exist, preventing broken URLs and packaging failures.

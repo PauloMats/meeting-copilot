@@ -15,7 +15,10 @@ into a continuous recorder.
 - Structured answer generation through the Responses API.
 - Context profiles, glossary normalization, PostgreSQL schema, and pgvector retrieval abstraction.
 - Audio storage disabled by default. The current capture path never writes audio to disk.
-- Optional always-on-top compact behavior.
+- Operational overlay with minimized, compact and expanded modes, persisted bounds and optional
+  always-on-top/click-through behavior.
+- Speakable `sayThis` answer, support points, copy, pin, discard and inline review actions.
+- System, dark and light desktop themes with reduced-motion and keyboard-focus support.
 
 The document ingestion endpoint currently accepts and validates uploads but deliberately does not
 claim indexing is complete. A storage/indexing worker is listed in the delivery checklist.
@@ -93,6 +96,17 @@ pnpm dev:api
 ```bash
 pnpm check
 ```
+
+## Operational shortcuts
+
+- Configured single-key push-to-talk: `Space`, `F8`, `F9` or `F10`.
+- Show or recover overlay: `Ctrl+Shift+O`.
+- Toggle compact/expanded overlay: `Ctrl+Shift+E`.
+- Pause/resume assisted listening: `Ctrl+Shift+P`.
+- Copy current `sayThis`: `Ctrl+Shift+C` while the app is active.
+- Pin current answer: `Ctrl+Shift+K` while the app is active.
+
+Active capture cannot be hidden. Overlay/click-through settings never start audio capture.
 
 ## Security defaults
 

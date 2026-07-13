@@ -19,6 +19,8 @@
     "desktop:pack:win": "pnpm --filter @meeting-copilot/desktop pack:win",
     "desktop:dist:win": "pnpm --filter @meeting-copilot/desktop dist:win",
     "desktop:dist:win:installer": "pnpm --filter @meeting-copilot/desktop dist:win:installer",
+    "assets:validate": "node scripts/validate-assets.mjs",
+    "assets:report": "node scripts/validate-assets.mjs --report-only",
     "format": "prettier --write .",
     "lint": "turbo lint",
     "test": "turbo test",

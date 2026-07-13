@@ -12,8 +12,8 @@ import { GlossaryNormalizer } from "../glossary/normalizer.js";
 import type { RetrievalProvider } from "../retrieval/types.js";
 
 export interface AnswerContextRepository {
-  findProfile(id: string | null): Promise<ContextProfile | null>;
-  listGlossaryTerms(): Promise<GlossaryTerm[]>;
+  findProfile(userId: string, id: string | null): Promise<ContextProfile | null>;
+  listGlossaryTerms(userId: string): Promise<GlossaryTerm[]>;
 }
 
 export class AnswerService {
@@ -26,10 +26,10 @@ export class AnswerService {
     private readonly normalizer = new GlossaryNormalizer()
   ) {}
 
-  async generate(request: AnswerRequest): Promise<AnswerResponse> {
+  async generate(request: AnswerRequest, userId = "local"): Promise<AnswerResponse> {
     const [profile, glossaryTerms] = await Promise.all([
-      this.contextRepository.findProfile(request.contextProfileId),
-      this.contextRepository.listGlossaryTerms()
+      this.contextRepository.findProfile(userId, request.contextProfileId),
+      this.contextRepository.listGlossaryTerms(userId)
     ]);
     const normalized = this.normalizer.normalize(request.transcript, glossaryTerms);
     const preset = getPreset(request.intelligenceLevel, this.baseOptions);

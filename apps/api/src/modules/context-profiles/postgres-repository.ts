@@ -1,10 +1,10 @@
 import type { ContextProfile, GlossaryTerm } from "@meeting-copilot/contracts";
 import { contextProfiles, glossaryTerms, users, type Database } from "@meeting-copilot/database";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ContextRepository } from "./memory-repository.js";
 
 export class PostgresContextRepository implements ContextRepository {
-  private userId: string | null = null;
+  private bootstrapUserId: string | null = null;
 
   constructor(
     private readonly database: Database,
@@ -18,7 +18,7 @@ export class PostgresContextRepository implements ContextRepository {
       .where(eq(users.email, this.userEmail))
       .limit(1);
     if (existing) {
-      this.userId = existing.id;
+      this.bootstrapUserId = existing.id;
       return;
     }
     const [created] = await this.database
@@ -26,33 +26,35 @@ export class PostgresContextRepository implements ContextRepository {
       .values({ email: this.userEmail })
       .returning({ id: users.id });
     if (!created) throw new Error("Could not bootstrap the local application user");
-    this.userId = created.id;
+    this.bootstrapUserId = created.id;
   }
 
-  async findProfile(id: string | null): Promise<ContextProfile | null> {
+  async findProfile(userId: string, id: string | null): Promise<ContextProfile | null> {
     if (!id) return null;
     const [row] = await this.database
       .select()
       .from(contextProfiles)
-      .where(eq(contextProfiles.id, id))
+      .where(
+        and(eq(contextProfiles.id, id), eq(contextProfiles.userId, this.resolveUserId(userId)))
+      )
       .limit(1);
     return row ? toProfile(row) : null;
   }
 
-  async listProfiles(): Promise<ContextProfile[]> {
+  async listProfiles(userId: string): Promise<ContextProfile[]> {
     const rows = await this.database
       .select()
       .from(contextProfiles)
-      .where(eq(contextProfiles.userId, this.requireUserId()));
+      .where(eq(contextProfiles.userId, this.resolveUserId(userId)));
     return rows.map(toProfile);
   }
 
-  async saveProfile(profile: ContextProfile): Promise<ContextProfile> {
+  async saveProfile(userId: string, profile: ContextProfile): Promise<ContextProfile> {
     const [row] = await this.database
       .insert(contextProfiles)
       .values({
         id: profile.id,
-        userId: this.requireUserId(),
+        userId: this.resolveUserId(userId),
         name: profile.name,
         projectDescription: profile.projectDescription,
         techStack: profile.techStack,
@@ -75,28 +77,30 @@ export class PostgresContextRepository implements ContextRepository {
     return toProfile(row);
   }
 
-  async deleteProfile(id: string): Promise<boolean> {
+  async deleteProfile(userId: string, id: string): Promise<boolean> {
     const rows = await this.database
       .delete(contextProfiles)
-      .where(eq(contextProfiles.id, id))
+      .where(
+        and(eq(contextProfiles.id, id), eq(contextProfiles.userId, this.resolveUserId(userId)))
+      )
       .returning({ id: contextProfiles.id });
     return rows.length > 0;
   }
 
-  async listGlossaryTerms(): Promise<GlossaryTerm[]> {
+  async listGlossaryTerms(userId: string): Promise<GlossaryTerm[]> {
     const rows = await this.database
       .select()
       .from(glossaryTerms)
-      .where(eq(glossaryTerms.userId, this.requireUserId()));
+      .where(eq(glossaryTerms.userId, this.resolveUserId(userId)));
     return rows.map(toGlossaryTerm);
   }
 
-  async saveGlossaryTerm(term: GlossaryTerm): Promise<GlossaryTerm> {
+  async saveGlossaryTerm(userId: string, term: GlossaryTerm): Promise<GlossaryTerm> {
     const [row] = await this.database
       .insert(glossaryTerms)
       .values({
         id: term.id,
-        userId: this.requireUserId(),
+        userId: this.resolveUserId(userId),
         source: term.source,
         replacement: term.replacement,
         kind: term.kind,
@@ -119,17 +123,18 @@ export class PostgresContextRepository implements ContextRepository {
     return toGlossaryTerm(row);
   }
 
-  async deleteGlossaryTerm(id: string): Promise<boolean> {
+  async deleteGlossaryTerm(userId: string, id: string): Promise<boolean> {
     const rows = await this.database
       .delete(glossaryTerms)
-      .where(eq(glossaryTerms.id, id))
+      .where(and(eq(glossaryTerms.id, id), eq(glossaryTerms.userId, this.resolveUserId(userId))))
       .returning({ id: glossaryTerms.id });
     return rows.length > 0;
   }
 
-  private requireUserId(): string {
-    if (!this.userId) throw new Error("Repository has not been initialized");
-    return this.userId;
+  private resolveUserId(userId: string): string {
+    if (userId !== "local") return userId;
+    if (!this.bootstrapUserId) throw new Error("Repository has not been initialized");
+    return this.bootstrapUserId;
   }
 }
 

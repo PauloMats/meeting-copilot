@@ -58,4 +58,22 @@ describe("loadConfig", () => {
     expect(config.OPENAI_ANSWER_CONTEXT_CHARS).toBe(6000);
     expect(config.OPENAI_RETRIEVAL_LIMIT).toBe(0);
   });
+
+  it("requires explicit approval before accepting a live Stripe key", () => {
+    expect(() => loadConfig({ NODE_ENV: "test", STRIPE_SECRET_KEY: "sk_live_example" })).toThrow(
+      /live Stripe key was rejected/
+    );
+    expect(
+      loadConfig({
+        NODE_ENV: "test",
+        STRIPE_SECRET_KEY: "sk_live_example",
+        STRIPE_LIVE_MODE_ENABLED: "true"
+      }).STRIPE_SECRET_KEY
+    ).toBe("sk_live_example");
+  });
+
+  it("requires individual auth by default only in production", () => {
+    expect(loadConfig({ NODE_ENV: "test" }).AUTH_REQUIRED).toBe(false);
+    expect(loadConfig({ NODE_ENV: "production" }).AUTH_REQUIRED).toBe(true);
+  });
 });

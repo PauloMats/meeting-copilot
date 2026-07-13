@@ -5,6 +5,13 @@ const optionalNonEmptyString = z.preprocess(
   z.string().min(1).optional()
 );
 
+const optionalBoolean = z.preprocess((value) => {
+  if (value === undefined || value === "") return undefined;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return value;
+}, z.boolean().optional());
+
 const ConfigSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   API_HOST: z.string().default("0.0.0.0"),
@@ -15,6 +22,15 @@ const ConfigSchema = z.object({
     z.string().url().optional()
   ),
   APP_USER_EMAIL: z.string().email().default("local@meeting-copilot.invalid"),
+  AUTH_REQUIRED: optionalBoolean,
+  AUTH_TOKEN_PEPPER: optionalNonEmptyString,
+  PUBLIC_WEB_URL: z.string().url().default("http://localhost:5173"),
+  STRIPE_SECRET_KEY: optionalNonEmptyString,
+  STRIPE_WEBHOOK_SECRET: optionalNonEmptyString,
+  STRIPE_PRICE_BASIC: optionalNonEmptyString,
+  STRIPE_PRICE_PRO: optionalNonEmptyString,
+  STRIPE_PRICE_ADVANCED: optionalNonEmptyString,
+  STRIPE_LIVE_MODE_ENABLED: optionalBoolean,
   DESKTOP_API_KEY: optionalNonEmptyString,
   OPENAI_API_KEY: optionalNonEmptyString,
   OPENAI_ANSWER_MODEL: z.string().default("gpt-5.4-nano"),
@@ -33,20 +49,35 @@ const ConfigSchema = z.object({
 
 export type AppConfig = Omit<z.infer<typeof ConfigSchema>, "PORT" | "API_PORT"> & {
   API_PORT: number;
+  AUTH_REQUIRED: boolean;
 };
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppConfig {
   const config = ConfigSchema.parse(environment);
+  if (config.STRIPE_SECRET_KEY?.startsWith("sk_live_") && !config.STRIPE_LIVE_MODE_ENABLED) {
+    throw new Error(
+      "A live Stripe key was rejected. Explicit production approval and STRIPE_LIVE_MODE_ENABLED=true are required."
+    );
+  }
   const isRailway = Boolean(
     environment.RAILWAY_ENVIRONMENT ||
-      environment.RAILWAY_PROJECT_ID ||
-      environment.RAILWAY_SERVICE_ID
+    environment.RAILWAY_PROJECT_ID ||
+    environment.RAILWAY_SERVICE_ID
   );
   return {
     NODE_ENV: config.NODE_ENV,
     API_HOST: isRailway ? "0.0.0.0" : config.API_HOST,
     DATABASE_URL: config.DATABASE_URL,
     APP_USER_EMAIL: config.APP_USER_EMAIL,
+    AUTH_REQUIRED: config.AUTH_REQUIRED ?? config.NODE_ENV === "production",
+    AUTH_TOKEN_PEPPER: config.AUTH_TOKEN_PEPPER,
+    PUBLIC_WEB_URL: config.PUBLIC_WEB_URL,
+    STRIPE_SECRET_KEY: config.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: config.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PRICE_BASIC: config.STRIPE_PRICE_BASIC,
+    STRIPE_PRICE_PRO: config.STRIPE_PRICE_PRO,
+    STRIPE_PRICE_ADVANCED: config.STRIPE_PRICE_ADVANCED,
+    STRIPE_LIVE_MODE_ENABLED: config.STRIPE_LIVE_MODE_ENABLED,
     DESKTOP_API_KEY: config.DESKTOP_API_KEY,
     OPENAI_API_KEY: config.OPENAI_API_KEY,
     OPENAI_ANSWER_MODEL: config.OPENAI_ANSWER_MODEL,
@@ -61,6 +92,8 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     OPENAI_VECTOR_STORE_ID: config.OPENAI_VECTOR_STORE_ID,
     LOG_LEVEL: config.LOG_LEVEL,
     CORS_ORIGIN: config.CORS_ORIGIN,
-    API_PORT: isRailway ? (config.PORT ?? config.API_PORT ?? 3333) : (config.API_PORT ?? config.PORT ?? 3333)
+    API_PORT: isRailway
+      ? (config.PORT ?? config.API_PORT ?? 3333)
+      : (config.API_PORT ?? config.PORT ?? 3333)
   };
 }

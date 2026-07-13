@@ -47,6 +47,12 @@ export class AudioCapture {
     });
     this.streams.push(desktop);
 
+    if (desktop.getAudioTracks().length === 0) {
+      for (const track of desktop.getTracks()) track.stop();
+      this.streams = [];
+      throw new Error("No audio track is available for the selected meeting source");
+    }
+
     if (includeMicrophone) {
       const microphone = await navigator.mediaDevices.getUserMedia({
         audio: {

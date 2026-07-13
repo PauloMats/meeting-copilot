@@ -26,7 +26,7 @@ export const AnswerRequestSchema = z.object({
     .array(
       z.object({
         transcript: z.string(),
-        directAnswer: z.string()
+        sayThis: z.string()
       })
     )
     .max(10)

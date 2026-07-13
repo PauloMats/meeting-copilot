@@ -13,7 +13,11 @@ export class SettingsService {
   });
 
   get(): AppSettings {
-    return AppSettingsSchema.parse(this.store.get("settings"));
+    const parsed = AppSettingsSchema.parse(this.store.get("settings"));
+    if (!parsed.autoSubmit && parsed.submissionMode === "push_to_talk") {
+      return { ...parsed, submissionMode: "review_before_send" };
+    }
+    return parsed;
   }
 
   update(patch: Partial<AppSettings>): AppSettings {

@@ -266,6 +266,12 @@ button.secondary {
   color: #ff8d9d;
   font-size: 13px;
 }
+.metrics-line {
+  margin: 10px 0 0;
+  color: #66758a;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
 
 .answer-panel {
   padding: 20px;
@@ -326,6 +332,15 @@ button.secondary {
   margin: 10px 0 0;
   font-size: 18px;
   line-height: 1.55;
+}
+.key-points {
+  margin: -10px 0 16px;
+  padding-left: 20px;
+  color: #bfccdd;
+}
+.key-points li {
+  margin: 5px 0;
+  line-height: 1.45;
 }
 details {
   padding: 14px 0;
@@ -496,6 +511,16 @@ footer span::before {
   margin-top: 6px;
   font-size: 15px;
   line-height: 1.45;
+}
+
+.overlay-shell .key-points {
+  margin: 0 0 6px;
+  color: var(--overlay-text-color);
+  font-size: 12px;
+}
+
+.overlay-shell .metrics-line {
+  display: none;
 }
 
 .overlay-shell details {

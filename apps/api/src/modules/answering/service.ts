@@ -59,7 +59,8 @@ export class AnswerService {
           role: "system",
           content:
             "You are a fast silent technical meeting copilot. Return a short practical answer in the same language as the transcript. " +
-            "Prioritize speed over depth. Keep direct_answer under 90 words, detailed_explanation under 140 words, and example minimal. " +
+            "Prioritize speed over depth. The field sayThis must be a concise phrase the user can say out loud immediately. " +
+            "Keep sayThis under 70 words, keyPoints short, details under 140 words, and example minimal. " +
             "If uncertain, state the assumption briefly. Do not produce long research-style answers."
         },
         {
@@ -98,10 +99,9 @@ function truncate(value: string, maxChars: number): string {
   return `${value.slice(0, Math.max(0, maxChars - 1))}…`;
 }
 
-function compactProfile(profile: ContextProfile): Pick<
-  ContextProfile,
-  "id" | "name" | "projectDescription" | "techStack" | "businessContext"
-> {
+function compactProfile(
+  profile: ContextProfile
+): Pick<ContextProfile, "id" | "name" | "projectDescription" | "techStack" | "businessContext"> {
   return {
     id: profile.id,
     name: profile.name,

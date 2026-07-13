@@ -7,7 +7,7 @@ import { getMessages, languages } from "./i18n";
 
 export function App() {
   const copilot = useCopilot();
-  const canEdit = copilot.state === "ready_to_send" && !copilot.settings.autoSubmit;
+  const canEdit = copilot.state === "ready_to_send";
   const isOverlay = copilot.settings.overlayEnabled;
   const overlayOpacity = copilot.settings.overlayOpacity;
   const isLightOverlayText = copilot.settings.overlayTextTheme === "light";
@@ -100,8 +100,8 @@ export function App() {
                 value={copilot.settings.transcriptionDelay}
                 onChange={(event) =>
                   void copilot.updateSettings({
-                    transcriptionDelay:
-                      event.target.value as typeof copilot.settings.transcriptionDelay
+                    transcriptionDelay: event.target
+                      .value as typeof copilot.settings.transcriptionDelay
                   })
                 }
               >
@@ -118,14 +118,32 @@ export function App() {
                 value={copilot.settings.intelligenceLevel}
                 onChange={(event) =>
                   void copilot.updateSettings({
-                    intelligenceLevel:
-                      event.target.value as typeof copilot.settings.intelligenceLevel
+                    intelligenceLevel: event.target
+                      .value as typeof copilot.settings.intelligenceLevel
                   })
                 }
               >
                 <option value="basic">{t.intelligenceBasic}</option>
                 <option value="balanced">{t.intelligenceBalanced}</option>
                 <option value="advanced">{t.intelligenceAdvanced}</option>
+              </select>
+            </label>
+            <label className="field">
+              {t.submissionMode}
+              <select
+                value={copilot.settings.submissionMode}
+                onChange={(event) => {
+                  const submissionMode = event.target
+                    .value as typeof copilot.settings.submissionMode;
+                  void copilot.updateSettings({
+                    submissionMode,
+                    autoSubmit: submissionMode !== "review_before_send"
+                  });
+                }}
+              >
+                <option value="push_to_talk">{t.modePushToTalk}</option>
+                <option value="auto_detect">{t.modeAutoDetect}</option>
+                <option value="review_before_send">{t.modeReview}</option>
               </select>
             </label>
             <label className="switch">
@@ -141,9 +159,15 @@ export function App() {
             <label className="switch">
               <input
                 type="checkbox"
-                checked={!copilot.settings.autoSubmit}
+                checked={
+                  copilot.settings.submissionMode === "review_before_send" ||
+                  !copilot.settings.autoSubmit
+                }
                 onChange={(event) =>
-                  void copilot.updateSettings({ autoSubmit: !event.target.checked })
+                  void copilot.updateSettings({
+                    autoSubmit: !event.target.checked,
+                    submissionMode: event.target.checked ? "review_before_send" : "push_to_talk"
+                  })
                 }
               />
               {t.reviewBeforeSending}
@@ -185,8 +209,8 @@ export function App() {
                   value={copilot.settings.overlayTextTheme}
                   onChange={(event) =>
                     void copilot.updateSettings({
-                      overlayTextTheme:
-                        event.target.value as typeof copilot.settings.overlayTextTheme
+                      overlayTextTheme: event.target
+                        .value as typeof copilot.settings.overlayTextTheme
                     })
                   }
                 >
@@ -237,6 +261,15 @@ export function App() {
             </div>
           )}
           {copilot.error && <p className="error-message">{copilot.error}</p>}
+          {copilot.lastMetrics && (
+            <p className="metrics-line">
+              {t.lastTurnMetrics(
+                copilot.lastMetrics.captureToTranscriptMs,
+                copilot.lastMetrics.transcriptToAnswerMs,
+                copilot.lastMetrics.totalMs
+              )}
+            </p>
+          )}
         </div>
 
         <div className="answer-panel">

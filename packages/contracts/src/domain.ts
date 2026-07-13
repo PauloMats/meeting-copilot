@@ -23,14 +23,19 @@ export const IntelligenceLevelSchema = z.enum(["basic", "balanced", "advanced"])
 export type IntelligenceLevel = z.infer<typeof IntelligenceLevelSchema>;
 
 export const ConfidenceSchema = z.enum(["high", "medium", "low"]);
+export type Confidence = z.infer<typeof ConfidenceSchema>;
+
+export const SubmissionModeSchema = z.enum(["push_to_talk", "auto_detect", "review_before_send"]);
+export type SubmissionMode = z.infer<typeof SubmissionModeSchema>;
 
 export const AnswerSchema = z.object({
-  direct_answer: z.string(),
-  detailed_explanation: z.string(),
-  example: z.string(),
-  assumptions: z.array(z.string()),
-  follow_up_questions: z.array(z.string()),
-  confidence: ConfidenceSchema
+  sayThis: z.string().min(1).max(800),
+  keyPoints: z.array(z.string().min(1).max(240)).min(1).max(5),
+  details: z.string().max(1600).optional().default(""),
+  example: z.string().max(1200).optional().default(""),
+  assumptions: z.array(z.string().min(1).max(240)).max(5).optional().default([]),
+  confidence: ConfidenceSchema.optional().default("medium"),
+  followUps: z.array(z.string().min(1).max(240)).max(5).optional().default([])
 });
 export type Answer = z.infer<typeof AnswerSchema>;
 
@@ -60,6 +65,7 @@ export const AppSettingsSchema = z.object({
   hotkey: z.string().default("Space"),
   includeMicrophone: z.boolean().default(false),
   autoSubmit: z.boolean().default(true),
+  submissionMode: SubmissionModeSchema.default("push_to_talk"),
   doNotSaveAudio: z.boolean().default(true),
   transcriptRetentionDays: z.number().int().min(0).max(3650).default(30),
   audioRetentionDays: z.number().int().min(0).max(365).default(0),
@@ -88,5 +94,5 @@ export interface TranscriptTurn {
 
 export interface MeetingMemoryItem {
   transcript: string;
-  directAnswer: string;
+  sayThis: string;
 }

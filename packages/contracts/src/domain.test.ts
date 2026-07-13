@@ -5,10 +5,26 @@ describe("contracts", () => {
   it("uses privacy-first defaults", () => {
     expect(DEFAULT_SETTINGS.doNotSaveAudio).toBe(true);
     expect(DEFAULT_SETTINGS.autoSubmit).toBe(true);
+    expect(DEFAULT_SETTINGS.submissionMode).toBe("push_to_talk");
     expect(DEFAULT_SETTINGS.audioRetentionDays).toBe(0);
   });
 
   it("rejects incomplete answers", () => {
-    expect(() => AnswerSchema.parse({ direct_answer: "Use a queue." })).toThrow();
+    expect(() => AnswerSchema.parse({ sayThis: "Use a queue." })).toThrow();
+  });
+
+  it("accepts speakable answers", () => {
+    expect(
+      AnswerSchema.parse({
+        sayThis: "Use idempotency keys and retry only transient failures.",
+        keyPoints: ["Store one request key per operation."]
+      })
+    ).toMatchObject({
+      confidence: "medium",
+      details: "",
+      example: "",
+      assumptions: [],
+      followUps: []
+    });
   });
 });

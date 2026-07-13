@@ -185,12 +185,35 @@ function buildApplicationMenu(settings: AppSettings): void {
         {
           label: "Review before sending",
           type: "checkbox",
-          checked: !settings.autoSubmit,
+          checked: settings.submissionMode === "review_before_send" || !settings.autoSubmit,
           click: () => {
-            applySettingsPatch({ autoSubmit: !settings.autoSubmit });
+            const reviewEnabled =
+              settings.submissionMode === "review_before_send" || !settings.autoSubmit;
+            applySettingsPatch({
+              autoSubmit: reviewEnabled,
+              submissionMode: reviewEnabled ? "push_to_talk" : "review_before_send"
+            });
           }
         },
         { type: "separator" },
+        {
+          label: "Submission mode",
+          submenu: [
+            { label: "Hold and send", value: "push_to_talk" },
+            { label: "Detect question", value: "auto_detect" },
+            { label: "Review first", value: "review_before_send" }
+          ].map(({ label, value }) => ({
+            label,
+            type: "radio" as const,
+            checked: settings.submissionMode === value,
+            click: () => {
+              applySettingsPatch({
+                submissionMode: value as typeof settings.submissionMode,
+                autoSubmit: value !== "review_before_send"
+              });
+            }
+          }))
+        },
         {
           label: "Intelligence",
           submenu: intelligenceOptions.map(({ label, value }) => ({

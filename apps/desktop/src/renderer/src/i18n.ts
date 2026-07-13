@@ -23,6 +23,10 @@ type Messages = {
   intelligenceBasic: string;
   intelligenceBalanced: string;
   intelligenceAdvanced: string;
+  submissionMode: string;
+  modePushToTalk: string;
+  modeAutoDetect: string;
+  modeReview: string;
   fastest: string;
   fast: string;
   balanced: string;
@@ -55,6 +59,11 @@ type Messages = {
   example: string;
   assumptions: string;
   confidence: (value: string) => string;
+  lastTurnMetrics: (
+    captureToTranscriptMs: number | null,
+    transcriptToAnswerMs: number | null,
+    totalMs: number | null
+  ) => string;
   states: Record<string, string>;
 };
 
@@ -73,6 +82,10 @@ const messages: Record<UiLanguage, Messages> = {
     intelligenceBasic: "Básico",
     intelligenceBalanced: "Médio",
     intelligenceAdvanced: "Avançado",
+    submissionMode: "Modo",
+    modePushToTalk: "Segurar e enviar",
+    modeAutoDetect: "Detectar pergunta",
+    modeReview: "Revisar antes",
     fastest: "Mais rápido",
     fast: "Rápido",
     balanced: "Balanceado",
@@ -105,6 +118,8 @@ const messages: Record<UiLanguage, Messages> = {
     example: "Exemplo",
     assumptions: "Suposições e riscos",
     confidence: (value) => `confiança ${value}`,
+    lastTurnMetrics: (capture, answer, total) =>
+      `Último turno: transcrição ${formatMs(capture)}, IA ${formatMs(answer)}, total ${formatMs(total)}`,
     states: {
       idle: "Pronto",
       listening: "Ouvindo",
@@ -129,6 +144,10 @@ const messages: Record<UiLanguage, Messages> = {
     intelligenceBasic: "Basic",
     intelligenceBalanced: "Balanced",
     intelligenceAdvanced: "Advanced",
+    submissionMode: "Mode",
+    modePushToTalk: "Hold and send",
+    modeAutoDetect: "Detect question",
+    modeReview: "Review first",
     fastest: "Fastest",
     fast: "Fast",
     balanced: "Balanced",
@@ -161,6 +180,8 @@ const messages: Record<UiLanguage, Messages> = {
     example: "Example",
     assumptions: "Assumptions and risks",
     confidence: (value) => `${value} confidence`,
+    lastTurnMetrics: (capture, answer, total) =>
+      `Last turn: transcript ${formatMs(capture)}, AI ${formatMs(answer)}, total ${formatMs(total)}`,
     states: {
       idle: "Ready",
       listening: "Listening",
@@ -185,6 +206,10 @@ const messages: Record<UiLanguage, Messages> = {
     intelligenceBasic: "Básico",
     intelligenceBalanced: "Medio",
     intelligenceAdvanced: "Avanzado",
+    submissionMode: "Modo",
+    modePushToTalk: "Mantener y enviar",
+    modeAutoDetect: "Detectar pregunta",
+    modeReview: "Revisar antes",
     fastest: "Más rápido",
     fast: "Rápido",
     balanced: "Balanceado",
@@ -217,6 +242,8 @@ const messages: Record<UiLanguage, Messages> = {
     example: "Ejemplo",
     assumptions: "Suposiciones y riesgos",
     confidence: (value) => `confianza ${value}`,
+    lastTurnMetrics: (capture, answer, total) =>
+      `Último turno: transcripción ${formatMs(capture)}, IA ${formatMs(answer)}, total ${formatMs(total)}`,
     states: {
       idle: "Listo",
       listening: "Escuchando",
@@ -241,6 +268,10 @@ const messages: Record<UiLanguage, Messages> = {
     intelligenceBasic: "Базовый",
     intelligenceBalanced: "Средний",
     intelligenceAdvanced: "Продвинутый",
+    submissionMode: "Режим",
+    modePushToTalk: "Удержать и отправить",
+    modeAutoDetect: "Определять вопрос",
+    modeReview: "Сначала проверить",
     fastest: "Самый быстрый",
     fast: "Быстро",
     balanced: "Баланс",
@@ -273,6 +304,8 @@ const messages: Record<UiLanguage, Messages> = {
     example: "Пример",
     assumptions: "Предположения и риски",
     confidence: (value) => `уверенность ${value}`,
+    lastTurnMetrics: (capture, answer, total) =>
+      `Последний ход: транскрипция ${formatMs(capture)}, ИИ ${formatMs(answer)}, всего ${formatMs(total)}`,
     states: {
       idle: "Готово",
       listening: "Слушаю",
@@ -297,6 +330,10 @@ const messages: Record<UiLanguage, Messages> = {
     intelligenceBasic: "Basique",
     intelligenceBalanced: "Moyen",
     intelligenceAdvanced: "Avancé",
+    submissionMode: "Mode",
+    modePushToTalk: "Maintenir et envoyer",
+    modeAutoDetect: "Détecter question",
+    modeReview: "Relire avant",
     fastest: "Le plus rapide",
     fast: "Rapide",
     balanced: "Équilibré",
@@ -318,8 +355,7 @@ const messages: Record<UiLanguage, Messages> = {
     transcript: "Transcription",
     answerPlaceholderTitle: "La réponse apparaîtra ici",
     answerPlaceholderBody: "Réponse directe d’abord, puis explication et exemple.",
-    holdPlaceholder: (hotkey) =>
-      `Maintenez ${hotkey} pendant qu’une question technique est posée…`,
+    holdPlaceholder: (hotkey) => `Maintenez ${hotkey} pendant qu’une question technique est posée…`,
     cancel: "Annuler",
     sendAnswer: "Envoyer la réponse",
     pushToTalkOnly: "Push-to-talk uniquement",
@@ -330,6 +366,8 @@ const messages: Record<UiLanguage, Messages> = {
     example: "Exemple",
     assumptions: "Hypothèses et risques",
     confidence: (value) => `confiance ${value}`,
+    lastTurnMetrics: (capture, answer, total) =>
+      `Dernier tour : transcription ${formatMs(capture)}, IA ${formatMs(answer)}, total ${formatMs(total)}`,
     states: {
       idle: "Prêt",
       listening: "Écoute",
@@ -354,6 +392,10 @@ const messages: Record<UiLanguage, Messages> = {
     intelligenceBasic: "Base",
     intelligenceBalanced: "Medio",
     intelligenceAdvanced: "Avanzato",
+    submissionMode: "Modalità",
+    modePushToTalk: "Tieni e invia",
+    modeAutoDetect: "Rileva domanda",
+    modeReview: "Rivedi prima",
     fastest: "Più veloce",
     fast: "Veloce",
     balanced: "Bilanciato",
@@ -386,6 +428,8 @@ const messages: Record<UiLanguage, Messages> = {
     example: "Esempio",
     assumptions: "Ipotesi e rischi",
     confidence: (value) => `confidenza ${value}`,
+    lastTurnMetrics: (capture, answer, total) =>
+      `Ultimo turno: trascrizione ${formatMs(capture)}, IA ${formatMs(answer)}, totale ${formatMs(total)}`,
     states: {
       idle: "Pronto",
       listening: "Ascolto",
@@ -405,4 +449,10 @@ export function normalizeLanguage(language: string): UiLanguage {
 
 export function getMessages(language: string): Messages {
   return messages[normalizeLanguage(language)];
+}
+
+function formatMs(value: number | null): string {
+  if (value === null) return "n/a";
+  if (value < 1000) return `${value}ms`;
+  return `${(value / 1000).toFixed(1)}s`;
 }

@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@meeting-copilot/contracts": "workspace:*",
+    "@meeting-copilot/design-system": "workspace:*",
     "dotenv": "^16.5.0",
     "electron-store": "^10.0.1",
     "react": "^19.1.0",

@@ -81,6 +81,9 @@ importers:
       '@meeting-copilot/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@meeting-copilot/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       dotenv:
         specifier: ^16.5.0
         version: 16.6.1
@@ -133,6 +136,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@meeting-copilot/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       '@vitejs/plugin-react':
         specifier: ^4.5.2
         version: 4.7.0(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(tsx@4.22.4))
@@ -193,6 +199,8 @@ importers:
       vitest:
         specifier: ^3.2.3
         version: 3.2.6(@types/debug@4.1.13)(@types/node@22.20.0)(jiti@2.7.0)(tsx@4.22.4)
+
+  packages/design-system: {}
 
 packages:
 

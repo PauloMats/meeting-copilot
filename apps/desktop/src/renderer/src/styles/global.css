@@ -1,78 +1,32 @@
+@import "@meeting-copilot/design-system/tokens.css";
+
 :root {
-  color-scheme: dark;
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--mc-font-sans);
   font-synthesis: none;
-  --bg: #0b0e13;
-  --surface: #11161e;
-  --surface-raised: #171d27;
-  --surface-subtle: #0e131a;
-  --text: #f0f3f7;
-  --text-secondary: #b4becd;
-  --text-muted: #778397;
-  --border: #252d39;
-  --action: #65d6c0;
-  --action-strong: #8ae4d3;
-  --success: #62d6b9;
-  --warning: #e5b765;
-  --danger: #f07888;
-  --focus: #83ddcc;
-  --shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --motion-fast: 120ms;
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #f3f5f7;
-  --surface: #ffffff;
-  --surface-raised: #f7f9fa;
-  --surface-subtle: #eef1f4;
-  --text: #151a21;
-  --text-secondary: #475363;
-  --text-muted: #6c7887;
-  --border: #d8dee6;
-  --action: #167d6c;
-  --action-strong: #0f6759;
-  --success: #167d61;
-  --warning: #8a641d;
-  --danger: #ad3448;
-  --focus: #167d6c;
-  --shadow: 0 12px 32px rgba(29, 40, 54, 0.12);
-}
-
-@media (prefers-color-scheme: light) {
-  :root[data-theme="system"] {
-    color-scheme: light;
-    --bg: #f3f5f7;
-    --surface: #ffffff;
-    --surface-raised: #f7f9fa;
-    --surface-subtle: #eef1f4;
-    --text: #151a21;
-    --text-secondary: #475363;
-    --text-muted: #6c7887;
-    --border: #d8dee6;
-    --action: #167d6c;
-    --action-strong: #0f6759;
-    --success: #167d61;
-    --warning: #8a641d;
-    --danger: #ad3448;
-    --focus: #167d6c;
-    --shadow: 0 12px 32px rgba(29, 40, 54, 0.12);
-  }
+  --bg: var(--mc-color-canvas);
+  --surface: var(--mc-color-surface);
+  --surface-raised: var(--mc-color-surface-raised);
+  --surface-subtle: var(--mc-color-surface-muted);
+  --text: var(--mc-color-text);
+  --text-secondary: var(--mc-color-text-secondary);
+  --text-muted: var(--mc-color-text-tertiary);
+  --border: var(--mc-color-border);
+  --action: var(--mc-color-brand);
+  --action-strong: var(--mc-color-brand-hover);
+  --success: var(--mc-color-success);
+  --warning: var(--mc-color-warning);
+  --danger: var(--mc-color-danger);
+  --focus: var(--mc-color-focus);
+  --shadow: var(--mc-shadow-sm);
+  --radius-sm: var(--mc-radius-xs);
+  --radius: var(--mc-radius-sm);
+  --radius-lg: var(--mc-radius-md);
+  --space-1: var(--mc-space-1);
+  --space-2: var(--mc-space-2);
+  --space-3: var(--mc-space-3);
+  --space-4: var(--mc-space-4);
+  --space-5: var(--mc-space-5);
+  --motion-fast: var(--mc-motion-fast);
 }
 
 * {
@@ -111,11 +65,11 @@ input:focus-visible,
   border-color: var(--focus);
 }
 button {
-  min-height: 38px;
-  padding: 8px 13px;
+  min-height: var(--mc-control-md);
+  padding: 8px 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: #07120f;
+  color: var(--mc-color-on-brand);
   background: var(--action);
   font-weight: 700;
   cursor: pointer;
@@ -150,10 +104,10 @@ button:disabled {
 .icon-button {
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: var(--mc-control-md);
+  min-width: var(--mc-control-md);
+  height: var(--mc-control-md);
+  min-height: var(--mc-control-md);
   padding: 0;
   color: var(--text-secondary);
   background: transparent;
@@ -201,16 +155,21 @@ input[type="range"] {
 }
 
 .application-shell {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  grid-template-rows: 64px minmax(0, 1fr);
   min-height: 100vh;
-  padding: 0 22px 24px;
   background: var(--bg);
 }
 .app-header {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 64px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 .app-header > div:first-child {
   display: flex;
@@ -219,21 +178,32 @@ input[type="range"] {
   font-size: 14px;
 }
 .product-mark {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  background: var(--action);
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--action) 35%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--action) 12%, var(--surface));
+}
+.product-mark::before {
+  content: "✦";
+  color: var(--action);
+  font-size: 13px;
 }
 .app-navigation {
   display: flex;
-  gap: 3px;
-  overflow-x: auto;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
 }
 .app-navigation button {
-  min-height: 34px;
-  padding: 6px 11px;
+  min-height: 42px;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  text-align: left;
   color: var(--text-muted);
   background: transparent;
   font-size: 12px;
@@ -243,13 +213,14 @@ input[type="range"] {
   background: var(--surface);
 }
 .app-navigation button.active {
-  color: var(--text);
-  background: var(--surface-raised);
+  color: var(--action);
+  background: color-mix(in srgb, var(--action) 11%, var(--surface));
 }
 .app-content {
+  width: 100%;
   max-width: 1120px;
-  margin: 0 auto;
-  padding-top: 20px;
+  margin: 0;
+  padding: 26px clamp(20px, 4vw, 48px) 36px;
 }
 .page-section {
   max-width: 820px;
@@ -259,7 +230,7 @@ input[type="range"] {
 }
 .page-heading h1 {
   margin: 0 0 5px;
-  font-size: 22px;
+  font-size: 26px;
   letter-spacing: -0.025em;
 }
 .page-heading p {
@@ -552,6 +523,22 @@ pre {
   border-radius: var(--radius);
   background: var(--surface);
 }
+.settings-group + .settings-group {
+  margin-top: 22px;
+}
+.settings-group > header {
+  margin-bottom: 9px;
+}
+.settings-group > header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.settings-group > header p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
 .settings-row,
 .shortcut-row {
   display: flex;
@@ -801,6 +788,39 @@ summary,
 }
 
 @media (max-width: 820px) {
+  .application-shell {
+    display: block;
+    padding-bottom: 64px;
+  }
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .app-navigation {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(72px, 1fr));
+    overflow-x: auto;
+    padding: 7px 8px;
+    border-top: 1px solid var(--border);
+    border-right: 0;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    backdrop-filter: blur(16px);
+  }
+  .app-navigation button {
+    min-height: 42px;
+    justify-content: center;
+    padding-inline: 8px;
+    text-align: center;
+  }
+  .app-content {
+    padding: 22px 18px 28px;
+  }
   .meeting-layout {
     grid-template-columns: 1fr;
   }
@@ -810,6 +830,36 @@ summary,
   }
   .diagnostic-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-header {
+    padding-inline: 12px;
+  }
+  .app-header > div:first-child strong {
+    display: none;
+  }
+  .app-navigation {
+    grid-template-columns: repeat(6, 82px);
+  }
+  .meeting-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .meeting-toolbar > div {
+    flex-basis: 100%;
+  }
+  .settings-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .settings-row select,
+  .settings-row input[type="range"] {
+    width: 100%;
+  }
+  .settings-row input[type="checkbox"] {
+    align-self: flex-end;
   }
 }
 

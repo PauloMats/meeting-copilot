@@ -1,5 +1,5 @@
 import type { AppSettings } from "@meeting-copilot/contracts";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { ErrorState } from "./components/ErrorState";
 import { OverlayShell } from "./components/OverlayShell";
 import { OverlayStatus } from "./components/OverlayStatus";
@@ -277,145 +277,156 @@ function SettingsView({
   return (
     <section className="page-section">
       <PageHeading title={o.nav.settings} subtitle="Meeting behavior and overlay preferences." />
-      <div className="settings-list">
-        <SettingsSelect
-          label={o.theme}
-          value={copilot.settings.theme}
-          options={[
-            ["system", o.themeSystem],
-            ["dark", o.themeDark],
-            ["light", o.themeLight]
-          ]}
-          onChange={(theme) =>
-            void copilot.updateSettings({ theme: theme as AppSettings["theme"] })
-          }
-        />
-        <SettingsSelect
-          label={t.language}
-          value={copilot.settings.language}
-          options={languages.map((language) => [language.value, language.label])}
-          onChange={(language) => void copilot.updateSettings({ language })}
-        />
-        <SettingsSelect
-          label={t.hotkey}
-          value={copilot.settings.hotkey}
-          options={[
-            ["Space", "Space"],
-            ["F8", "F8"],
-            ["F9", "F9"],
-            ["F10", "F10"]
-          ]}
-          onChange={(hotkey) => void copilot.updateSettings({ hotkey })}
-        />
-        <SettingsSelect
-          label={t.accuracy}
-          value={copilot.settings.transcriptionDelay}
-          options={[
-            ["minimal", t.fastest],
-            ["low", t.fast],
-            ["medium", t.balanced],
-            ["high", t.accurate],
-            ["xhigh", t.mostAccurate]
-          ]}
-          onChange={(transcriptionDelay) =>
-            void copilot.updateSettings({
-              transcriptionDelay: transcriptionDelay as AppSettings["transcriptionDelay"]
-            })
-          }
-        />
-        <SettingsSelect
-          label={t.submissionMode}
-          value={copilot.settings.submissionMode}
-          options={[
-            ["push_to_talk", t.modePushToTalk],
-            ["auto_detect", t.modeAutoDetect],
-            ["review_before_send", t.modeReview]
-          ]}
-          onChange={(submissionMode) =>
-            void copilot.updateSettings({
-              submissionMode: submissionMode as AppSettings["submissionMode"],
-              autoSubmit: submissionMode !== "review_before_send"
-            })
-          }
-        />
-        <SettingsSelect
-          label={t.intelligence}
-          value={copilot.settings.intelligenceLevel}
-          options={[
-            ["basic", t.intelligenceBasic],
-            ["balanced", t.intelligenceBalanced],
-            ["advanced", t.intelligenceAdvanced]
-          ]}
-          onChange={(intelligenceLevel) =>
-            void copilot.updateSettings({
-              intelligenceLevel: intelligenceLevel as AppSettings["intelligenceLevel"]
-            })
-          }
-        />
-        <SettingsSelect
-          label={o.overlaySize}
-          value={copilot.settings.overlayMode}
-          options={[
-            ["minimized", "Minimized"],
-            ["compact", "Compact"],
-            ["expanded", "Expanded"]
-          ]}
-          onChange={(overlayMode) =>
-            void copilot.updateSettings({
-              overlayMode: overlayMode as AppSettings["overlayMode"]
-            })
-          }
-        />
-        <div className="settings-row">
-          <div>
-            <strong>{t.overlayOpacity}</strong>
-            <small>{Math.round(copilot.settings.overlayOpacity * 100)}%</small>
-          </div>
-          <input
-            type="range"
-            min="0.18"
-            max="0.92"
-            step="0.02"
-            value={copilot.settings.overlayOpacity}
-            onChange={(event) =>
-              void copilot.updateSettings({ overlayOpacity: Number(event.target.value) })
+      <SettingsGroup title="General" description="Language, shortcuts and answer behavior.">
+        <div className="settings-list">
+          <SettingsSelect
+            label={o.theme}
+            value={copilot.settings.theme}
+            options={[
+              ["system", o.themeSystem],
+              ["dark", o.themeDark],
+              ["light", o.themeLight]
+            ]}
+            onChange={(theme) =>
+              void copilot.updateSettings({ theme: theme as AppSettings["theme"] })
+            }
+          />
+          <SettingsSelect
+            label={t.language}
+            value={copilot.settings.language}
+            options={languages.map((language) => [language.value, language.label])}
+            onChange={(language) => void copilot.updateSettings({ language })}
+          />
+          <SettingsSelect
+            label={t.hotkey}
+            value={copilot.settings.hotkey}
+            options={[
+              ["Space", "Space"],
+              ["F8", "F8"],
+              ["F9", "F9"],
+              ["F10", "F10"]
+            ]}
+            onChange={(hotkey) => void copilot.updateSettings({ hotkey })}
+          />
+          <SettingsSelect
+            label={t.accuracy}
+            value={copilot.settings.transcriptionDelay}
+            options={[
+              ["minimal", t.fastest],
+              ["low", t.fast],
+              ["medium", t.balanced],
+              ["high", t.accurate],
+              ["xhigh", t.mostAccurate]
+            ]}
+            onChange={(transcriptionDelay) =>
+              void copilot.updateSettings({
+                transcriptionDelay: transcriptionDelay as AppSettings["transcriptionDelay"]
+              })
+            }
+          />
+          <SettingsSelect
+            label={t.submissionMode}
+            value={copilot.settings.submissionMode}
+            options={[
+              ["push_to_talk", t.modePushToTalk],
+              ["auto_detect", t.modeAutoDetect],
+              ["review_before_send", t.modeReview]
+            ]}
+            onChange={(submissionMode) =>
+              void copilot.updateSettings({
+                submissionMode: submissionMode as AppSettings["submissionMode"],
+                autoSubmit: submissionMode !== "review_before_send"
+              })
+            }
+          />
+          <SettingsSelect
+            label={t.intelligence}
+            value={copilot.settings.intelligenceLevel}
+            options={[
+              ["basic", t.intelligenceBasic],
+              ["balanced", t.intelligenceBalanced],
+              ["advanced", t.intelligenceAdvanced]
+            ]}
+            onChange={(intelligenceLevel) =>
+              void copilot.updateSettings({
+                intelligenceLevel: intelligenceLevel as AppSettings["intelligenceLevel"]
+              })
             }
           />
         </div>
-        <SettingsToggle
-          label={t.overlayTextShadow}
-          checked={copilot.settings.overlayTextShadow}
-          onChange={(overlayTextShadow) => void copilot.updateSettings({ overlayTextShadow })}
-        />
-        <SettingsToggle
-          label={o.alwaysOnTop}
-          checked={copilot.settings.overlayAlwaysOnTop}
-          onChange={(overlayAlwaysOnTop) => void copilot.updateSettings({ overlayAlwaysOnTop })}
-        />
-        <SettingsToggle
-          label={o.clickThrough}
-          description="Ctrl+Shift+O always recovers the overlay."
-          checked={copilot.settings.overlayClickThrough}
-          onChange={(overlayClickThrough) => void copilot.updateSettings({ overlayClickThrough })}
-        />
-        <SettingsToggle
-          label={o.partialTranscript}
-          checked={copilot.settings.showPartialTranscript}
-          onChange={(showPartialTranscript) =>
-            void copilot.updateSettings({ showPartialTranscript })
-          }
-        />
-        <div className="settings-row">
-          <div>
-            <strong>Retention</strong>
-            <small>
-              Audio 0 days · transcript {copilot.settings.transcriptRetentionDays} days when backend
-              persistence is enabled
-            </small>
+      </SettingsGroup>
+      <SettingsGroup title="Overlay" description="Appearance and interaction during meetings.">
+        <div className="settings-list">
+          <SettingsSelect
+            label={o.overlaySize}
+            value={copilot.settings.overlayMode}
+            options={[
+              ["minimized", "Minimized"],
+              ["compact", "Compact"],
+              ["expanded", "Expanded"]
+            ]}
+            onChange={(overlayMode) =>
+              void copilot.updateSettings({
+                overlayMode: overlayMode as AppSettings["overlayMode"]
+              })
+            }
+          />
+          <div className="settings-row">
+            <div>
+              <strong>{t.overlayOpacity}</strong>
+              <small>{Math.round(copilot.settings.overlayOpacity * 100)}%</small>
+            </div>
+            <input
+              aria-label={t.overlayOpacity}
+              type="range"
+              min="0.18"
+              max="0.92"
+              step="0.02"
+              value={copilot.settings.overlayOpacity}
+              onChange={(event) =>
+                void copilot.updateSettings({ overlayOpacity: Number(event.target.value) })
+              }
+            />
           </div>
-          <span className="status-note">Runtime pending</span>
+          <SettingsToggle
+            label={t.overlayTextShadow}
+            checked={copilot.settings.overlayTextShadow}
+            onChange={(overlayTextShadow) => void copilot.updateSettings({ overlayTextShadow })}
+          />
+          <SettingsToggle
+            label={o.alwaysOnTop}
+            checked={copilot.settings.overlayAlwaysOnTop}
+            onChange={(overlayAlwaysOnTop) => void copilot.updateSettings({ overlayAlwaysOnTop })}
+          />
+          <SettingsToggle
+            label={o.clickThrough}
+            description="Ctrl+Shift+O always recovers the overlay."
+            checked={copilot.settings.overlayClickThrough}
+            onChange={(overlayClickThrough) => void copilot.updateSettings({ overlayClickThrough })}
+          />
+          <SettingsToggle
+            label={o.partialTranscript}
+            checked={copilot.settings.showPartialTranscript}
+            onChange={(showPartialTranscript) =>
+              void copilot.updateSettings({ showPartialTranscript })
+            }
+          />
         </div>
-      </div>
+      </SettingsGroup>
+      <SettingsGroup title="Privacy" description="Persistence and retention controls.">
+        <div className="settings-list">
+          <div className="settings-row">
+            <div>
+              <strong>Retention</strong>
+              <small>
+                Audio 0 days · transcript {copilot.settings.transcriptRetentionDays} days when
+                backend persistence is enabled
+              </small>
+            </div>
+            <span className="status-note">Runtime pending</span>
+          </div>
+        </div>
+      </SettingsGroup>
       <section className="shortcut-list">
         <h2>Keyboard shortcuts</h2>
         <ShortcutRow label="Push-to-talk" keys={copilot.settings.hotkey} />
@@ -484,6 +495,26 @@ function DiagnosticsView({
           Copy safe report
         </button>
       </div>
+    </section>
+  );
+}
+
+function SettingsGroup({
+  title,
+  description,
+  children
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="settings-group">
+      <header>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </header>
+      {children}
     </section>
   );
 }

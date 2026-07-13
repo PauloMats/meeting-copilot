@@ -60,3 +60,34 @@ Notes:
 
 - Full-repo Prettier check still has pre-existing failures outside this slice.
 - Files touched in this slice were formatted directly with Prettier.
+
+## Design-system baseline
+
+Date: 2026-07-13
+Branch: `phase-4-design-system`, based on `phase-4-saas-foundation`.
+
+| Check        | Result                                            |
+| ------------ | ------------------------------------------------- |
+| Format check | Failed: 16 pre-existing files need formatting     |
+| Lint         | Passed                                            |
+| Typecheck    | Passed                                            |
+| Tests        | Passed (36 tests)                                 |
+| Build        | Passed for contracts, database, API, web, desktop |
+
+The baseline was captured before UI changes. No provider calls, audio capture, database writes, or production deployments were made.
+
+## Design-system validation
+
+Date: 2026-07-13
+
+| Check                 | Result                                                                |
+| --------------------- | --------------------------------------------------------------------- |
+| Changed source/docs   | Passed                                                                |
+| Full format check     | Failed: 16 pre-existing lockfile/documentation/metadata files remain  |
+| Lint                  | Passed                                                                |
+| Typecheck             | Passed                                                                |
+| Tests                 | Passed (36 tests)                                                     |
+| Production build      | Passed for contracts, database, API, web, and desktop                 |
+| Responsive browser QA | Passed for landing, authentication, registration, and device approval |
+
+The browser QA covered 390 × 844 and 1280 × 800 viewports, both color themes, semantic landmarks, persistent form labels, and navigation. The desktop renderer was validated through lint, typecheck, tests, and a production Electron build; native Windows behavior still requires an installed-app smoke test.

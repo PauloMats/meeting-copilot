@@ -7,6 +7,9 @@ describe("contracts", () => {
     expect(DEFAULT_SETTINGS.autoSubmit).toBe(true);
     expect(DEFAULT_SETTINGS.submissionMode).toBe("push_to_talk");
     expect(DEFAULT_SETTINGS.audioRetentionDays).toBe(0);
+    expect(DEFAULT_SETTINGS.theme).toBe("system");
+    expect(DEFAULT_SETTINGS.overlayMode).toBe("compact");
+    expect(DEFAULT_SETTINGS.overlayClickThrough).toBe(false);
   });
 
   it("rejects incomplete answers", () => {

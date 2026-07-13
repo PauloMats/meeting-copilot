@@ -2,6 +2,7 @@ import {
   IPC_CHANNELS,
   type CopilotApi,
   type AppSettings,
+  type AppAction,
   type CaptureState,
   type TranscriptDelta,
   type TranscriptFinal
@@ -40,7 +41,8 @@ const api: CopilotApi = {
     generateAnswer: (request) => ipcRenderer.invoke(IPC_CHANNELS.answerGenerate, request)
   },
   window: {
-    setOverlay: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.overlaySet, enabled)
+    setMode: (mode) => ipcRenderer.invoke(IPC_CHANNELS.overlaySet, mode),
+    setClickThrough: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.overlayClickThroughSet, enabled)
   },
   events: {
     onHotkeyPressed: (listener) => subscribeSignal(IPC_CHANNELS.hotkeyPressed, listener),
@@ -51,7 +53,9 @@ const api: CopilotApi = {
       subscribe<TranscriptDelta>(IPC_CHANNELS.transcriptDelta, listener),
     onTranscriptFinal: (listener) =>
       subscribe<TranscriptFinal>(IPC_CHANNELS.transcriptFinal, listener),
-    onTranscriptionError: (listener) => subscribe<string>(IPC_CHANNELS.transcriptionError, listener)
+    onTranscriptionError: (listener) =>
+      subscribe<string>(IPC_CHANNELS.transcriptionError, listener),
+    onAppAction: (listener) => subscribe<AppAction>(IPC_CHANNELS.appAction, listener)
   }
 };
 

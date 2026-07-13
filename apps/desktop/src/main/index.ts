@@ -1,6 +1,7 @@
 import {
   IPC_CHANNELS,
   AnswerRequestSchema,
+  type AppWindowMode,
   type AppSettings,
   type CaptureState,
   type DesktopSource,
@@ -11,6 +12,7 @@ import {
   app,
   BrowserWindow,
   desktopCapturer,
+  globalShortcut,
   ipcMain,
   Menu,
   screen,
@@ -23,12 +25,16 @@ import { ApiClient } from "./services/api-client.js";
 import { HotkeyService } from "./services/hotkey-service.js";
 import { RealtimeTranscriptionService } from "./services/realtime-transcription-service.js";
 import { SettingsService } from "./services/settings-service.js";
+import { clampBoundsToWorkArea, defaultBoundsForMode } from "./window-state.js";
 
 let mainWindow: BrowserWindow | null = null;
 let selectedDesktopSourceId: string | null = null;
-let normalWindowBounds: Electron.Rectangle | null = null;
 let currentSettingsService: SettingsService | null = null;
 let currentHotkeyService: HotkeyService | null = null;
+let currentWindowMode: AppWindowMode = "main";
+let currentCaptureState: CaptureState = "idle";
+let applyingWindowBounds = false;
+let persistBoundsTimer: ReturnType<typeof setTimeout> | null = null;
 
 function send(channel: string, payload?: unknown): void {
   const window = mainWindow;
@@ -49,10 +55,29 @@ function applySettingsPatch(patch: Partial<AppSettings>): AppSettings | null {
     currentHotkeyService.stop();
     currentHotkeyService.start(next.hotkey);
   }
-  if (patch.overlayEnabled !== undefined) setOverlayMode(next.overlayEnabled);
+  if (
+    patch.overlayEnabled !== undefined ||
+    patch.overlayMode !== undefined ||
+    patch.overlayAlwaysOnTop !== undefined ||
+    patch.overlayClickThrough !== undefined
+  ) {
+    applyWindowMode(next.overlayEnabled ? next.overlayMode : "main", next);
+  }
   buildApplicationMenu(next);
   send(IPC_CHANNELS.settingsChanged, next);
   return next;
+}
+
+function requestWindowMode(mode: AppWindowMode): AppSettings | null {
+  if (
+    mode === "hidden" &&
+    (currentCaptureState === "listening" || currentCaptureState === "transcribing")
+  ) {
+    mode = "minimized";
+  }
+  return mode === "main"
+    ? applySettingsPatch({ overlayEnabled: false, overlayClickThrough: false })
+    : applySettingsPatch({ overlayEnabled: true, overlayMode: mode });
 }
 
 function loadDesktopEnvironment(): void {
@@ -110,8 +135,11 @@ function registerIpc(
   ipcMain.handle(IPC_CHANNELS.answerGenerate, (_event, request: unknown) =>
     apiClient.generateAnswer(AnswerRequestSchema.parse(request))
   );
-  ipcMain.handle(IPC_CHANNELS.overlaySet, (_event, enabled: boolean) => {
-    setOverlayMode(enabled);
+  ipcMain.handle(IPC_CHANNELS.overlaySet, (_event, mode: AppWindowMode) => {
+    requestWindowMode(mode);
+  });
+  ipcMain.handle(IPC_CHANNELS.overlayClickThroughSet, (_event, enabled: boolean) => {
+    applySettingsPatch({ overlayClickThrough: enabled });
   });
 }
 
@@ -147,13 +175,34 @@ function buildApplicationMenu(settings: AppSettings): void {
       label: "File",
       submenu: [
         {
-          label: "Toggle Overlay",
-          accelerator: "CommandOrControl+Shift+O",
+          label: "Show overlay (Ctrl+Shift+O)",
           type: "checkbox",
           checked: settings.overlayEnabled,
           click: () => {
-            applySettingsPatch({ overlayEnabled: !settings.overlayEnabled });
+            requestWindowMode(settings.overlayEnabled ? "main" : settings.overlayMode);
           }
+        },
+        {
+          label: "Overlay size",
+          submenu: (["minimized", "compact", "expanded"] as const).map((mode) => ({
+            label: mode.charAt(0).toUpperCase() + mode.slice(1),
+            type: "radio" as const,
+            checked: settings.overlayEnabled && settings.overlayMode === mode,
+            click: () => requestWindowMode(mode)
+          }))
+        },
+        {
+          label: "Always on top",
+          type: "checkbox",
+          checked: settings.overlayAlwaysOnTop,
+          click: () => applySettingsPatch({ overlayAlwaysOnTop: !settings.overlayAlwaysOnTop })
+        },
+        {
+          label: "Click-through",
+          type: "checkbox",
+          checked: settings.overlayClickThrough,
+          enabled: settings.overlayEnabled,
+          click: () => applySettingsPatch({ overlayClickThrough: !settings.overlayClickThrough })
         },
         { type: "separator" },
         isMac() ? { role: "close" } : { role: "quit" }
@@ -286,40 +335,86 @@ function buildApplicationMenu(settings: AppSettings): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-function setOverlayMode(enabled: boolean): void {
+function applyWindowMode(mode: AppWindowMode, settings: AppSettings): void {
   const window = mainWindow;
   if (!window || window.isDestroyed()) return;
+  currentWindowMode = mode;
 
-  if (enabled) {
-    normalWindowBounds = window.getBounds();
-    const { workArea } = screen.getPrimaryDisplay();
-    const width = Math.min(620, workArea.width - 48);
-    const height = Math.min(430, workArea.height - 48);
-    window.setBounds({
-      width,
-      height,
-      x: workArea.x + workArea.width - width - 24,
-      y: workArea.y + 24
-    });
-    window.setAlwaysOnTop(true, "screen-saver");
-    window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    window.setSkipTaskbar(true);
-    window.setResizable(true);
-    window.setMenuBarVisibility(false);
-    window.setAutoHideMenuBar(true);
-    window.setOpacity(1);
-    window.setBackgroundColor("#00000000");
+  if (mode === "hidden") {
+    window.setIgnoreMouseEvents(false);
+    window.hide();
     return;
   }
 
-  window.setAlwaysOnTop(false);
-  window.setVisibleOnAllWorkspaces(false);
-  window.setSkipTaskbar(false);
-  window.setMenuBarVisibility(true);
-  window.setAutoHideMenuBar(false);
+  const overlay = mode !== "main";
+  const display = screen.getDisplayMatching(window.getBounds());
+  const saved = currentSettingsService?.getWindowBounds(mode);
+  const bounds = clampBoundsToWorkArea(
+    saved ?? defaultBoundsForMode(mode, display.workArea),
+    display.workArea
+  );
+  applyingWindowBounds = true;
+  window.setMinimumSize(
+    mode === "main" ? 720 : mode === "minimized" ? 240 : 360,
+    mode === "main" ? 560 : 64
+  );
+  window.setMaximumSize(display.workArea.width, display.workArea.height);
+  window.setResizable(mode !== "minimized");
+  window.setBounds(bounds, false);
+  applyingWindowBounds = false;
+  window.setAlwaysOnTop(overlay && settings.overlayAlwaysOnTop, "screen-saver");
+  window.setVisibleOnAllWorkspaces(overlay, { visibleOnFullScreen: overlay });
+  window.setSkipTaskbar(overlay);
+  window.setMenuBarVisibility(!overlay);
+  window.setAutoHideMenuBar(overlay);
+  window.setIgnoreMouseEvents(overlay && settings.overlayClickThrough, { forward: true });
   window.setOpacity(1);
-  window.setBackgroundColor("#090d14");
-  if (normalWindowBounds) window.setBounds(normalWindowBounds);
+  window.setBackgroundColor(overlay ? "#00000000" : "#090d14");
+  if (!window.isVisible()) {
+    if (overlay) window.showInactive();
+    else window.show();
+  }
+}
+
+function persistCurrentBounds(): void {
+  if (applyingWindowBounds || currentWindowMode === "hidden" || !mainWindow) return;
+  if (persistBoundsTimer) clearTimeout(persistBoundsTimer);
+  persistBoundsTimer = setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || currentWindowMode === "hidden") return;
+    currentSettingsService?.setWindowBounds(currentWindowMode, mainWindow.getBounds());
+  }, 250);
+}
+
+function recoverWindowToCurrentDisplays(): void {
+  const window = mainWindow;
+  const settings = currentSettingsService?.get();
+  if (!window || window.isDestroyed() || !settings || currentWindowMode === "hidden") return;
+  const display = screen.getDisplayMatching(window.getBounds());
+  const next = clampBoundsToWorkArea(window.getBounds(), display.workArea);
+  applyingWindowBounds = true;
+  window.setBounds(next, false);
+  applyingWindowBounds = false;
+  currentSettingsService?.setWindowBounds(currentWindowMode, next);
+}
+
+function registerOperationalShortcuts(): void {
+  globalShortcut.register("CommandOrControl+Shift+O", () => {
+    if (currentWindowMode === "main" || currentWindowMode === "hidden") {
+      requestWindowMode("compact");
+      return;
+    }
+    requestWindowMode(
+      currentCaptureState === "listening" || currentCaptureState === "transcribing"
+        ? "minimized"
+        : "hidden"
+    );
+  });
+  globalShortcut.register("CommandOrControl+Shift+E", () => {
+    requestWindowMode(currentWindowMode === "expanded" ? "compact" : "expanded");
+  });
+  globalShortcut.register("CommandOrControl+Shift+P", () => {
+    send(IPC_CHANNELS.appAction, "toggle_pause");
+  });
 }
 
 async function createWindow(): Promise<void> {
@@ -328,7 +423,7 @@ async function createWindow(): Promise<void> {
     height: 780,
     minWidth: 820,
     minHeight: 600,
-    show: true,
+    show: false,
     transparent: true,
     backgroundColor: "#00000000",
     title: "Meeting Copilot",
@@ -341,6 +436,9 @@ async function createWindow(): Promise<void> {
       allowRunningInsecureContent: false
     }
   });
+
+  mainWindow.on("move", persistCurrentBounds);
+  mainWindow.on("resize", persistCurrentBounds);
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.on("console-message", (_event, level, message) => {
@@ -388,7 +486,13 @@ async function bootstrap(): Promise<void> {
     process.env.DESKTOP_API_KEY
   );
   const transcription = new RealtimeTranscriptionService(apiClient, {
-    state: (state: CaptureState) => send(IPC_CHANNELS.stateChanged, state),
+    state: (state: CaptureState) => {
+      currentCaptureState = state;
+      if (currentWindowMode === "hidden" && (state === "listening" || state === "transcribing")) {
+        requestWindowMode("minimized");
+      }
+      send(IPC_CHANNELS.stateChanged, state);
+    },
     delta: (event) => send(IPC_CHANNELS.transcriptDelta, event),
     final: (event) => send(IPC_CHANNELS.transcriptFinal, event),
     error: (message) => send(IPC_CHANNELS.transcriptionError, message)
@@ -421,13 +525,22 @@ async function bootstrap(): Promise<void> {
   await createWindow();
   const initialSettings = settingsService.get();
   buildApplicationMenu(initialSettings);
-  setOverlayMode(initialSettings.overlayEnabled);
+  applyWindowMode(
+    initialSettings.overlayEnabled ? initialSettings.overlayMode : "main",
+    initialSettings
+  );
   hotkey.start(initialSettings.hotkey);
+  registerOperationalShortcuts();
+  screen.on("display-removed", recoverWindowToCurrentDisplays);
+  screen.on("display-metrics-changed", recoverWindowToCurrentDisplays);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
-  app.on("before-quit", () => hotkey.stop());
+  app.on("before-quit", () => {
+    hotkey.stop();
+    globalShortcut.unregisterAll();
+  });
 }
 
 void app.whenReady().then(bootstrap).catch(console.error);

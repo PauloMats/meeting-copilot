@@ -4,7 +4,7 @@ import type {
   RealtimeTokenRequest,
   RealtimeTokenResponse
 } from "./api.js";
-import type { AppSettings, CaptureState } from "./domain.js";
+import type { AppSettings, CaptureState, OverlayMode } from "./domain.js";
 
 export const IPC_CHANNELS = {
   captureStart: "capture:start",
@@ -24,8 +24,20 @@ export const IPC_CHANNELS = {
   settingsChanged: "settings:changed",
   answerGenerate: "answer:generate",
   realtimeToken: "realtime:token",
-  overlaySet: "overlay:set"
+  overlaySet: "overlay:set",
+  overlayClickThroughSet: "overlay:click-through:set",
+  appAction: "app:action"
 } as const;
+
+export type AppWindowMode = "main" | OverlayMode;
+export type AppAction =
+  | "toggle_overlay"
+  | "toggle_overlay_size"
+  | "toggle_pause"
+  | "copy_answer"
+  | "pin_answer"
+  | "discard"
+  | "cancel";
 
 export interface DesktopSource {
   id: string;
@@ -63,7 +75,8 @@ export interface CopilotApi {
     generateAnswer(request: AnswerRequest): Promise<AnswerResponse>;
   };
   window: {
-    setOverlay(enabled: boolean): Promise<void>;
+    setMode(mode: AppWindowMode): Promise<void>;
+    setClickThrough(enabled: boolean): Promise<void>;
   };
   events: {
     onHotkeyPressed(listener: () => void): () => void;
@@ -73,5 +86,6 @@ export interface CopilotApi {
     onTranscriptDelta(listener: (event: TranscriptDelta) => void): () => void;
     onTranscriptFinal(listener: (event: TranscriptFinal) => void): () => void;
     onTranscriptionError(listener: (message: string) => void): () => void;
+    onAppAction(listener: (action: AppAction) => void): () => void;
   };
 }

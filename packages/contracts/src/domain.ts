@@ -19,6 +19,12 @@ export type TranscriptionDelay = z.infer<typeof TranscriptionDelaySchema>;
 export const OverlayTextThemeSchema = z.enum(["light", "dark"]);
 export type OverlayTextTheme = z.infer<typeof OverlayTextThemeSchema>;
 
+export const ThemePreferenceSchema = z.enum(["system", "dark", "light"]);
+export type ThemePreference = z.infer<typeof ThemePreferenceSchema>;
+
+export const OverlayModeSchema = z.enum(["hidden", "minimized", "compact", "expanded"]);
+export type OverlayMode = z.infer<typeof OverlayModeSchema>;
+
 export const IntelligenceLevelSchema = z.enum(["basic", "balanced", "advanced"]);
 export type IntelligenceLevel = z.infer<typeof IntelligenceLevelSchema>;
 
@@ -72,7 +78,12 @@ export const AppSettingsSchema = z.object({
   transcriptionDelay: TranscriptionDelaySchema.default("minimal"),
   intelligenceLevel: IntelligenceLevelSchema.default("basic"),
   language: z.string().min(2).max(10).default("en"),
+  theme: ThemePreferenceSchema.default("system"),
   overlayEnabled: z.boolean().default(false),
+  overlayMode: OverlayModeSchema.default("compact"),
+  overlayAlwaysOnTop: z.boolean().default(true),
+  overlayClickThrough: z.boolean().default(false),
+  showPartialTranscript: z.boolean().default(false),
   overlayOpacity: z.number().min(0.08).max(0.92).default(0.58),
   overlayTextTheme: OverlayTextThemeSchema.default("light"),
   overlayTextShadow: z.boolean().default(true),

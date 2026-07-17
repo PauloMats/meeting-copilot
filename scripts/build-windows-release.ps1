@@ -5,6 +5,19 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Invoke-NativeCommand {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
+    [string[]]$Arguments = @()
+  )
+
+  & $FilePath @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $($Arguments -join ' ')"
+  }
+}
+
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $node = Get-Command node -ErrorAction SilentlyContinue
 $corepack = Get-Command corepack -ErrorAction SilentlyContinue
@@ -27,22 +40,24 @@ if ([version](& $nodePath --version).TrimStart("v") -lt [version]"22.0.0") {
 
 $shimDirectory = Join-Path $env:LOCALAPPDATA "meeting-copilot\bin"
 New-Item -ItemType Directory -Force -Path $shimDirectory | Out-Null
-& $corepackPath enable --install-directory $shimDirectory
+Invoke-NativeCommand $corepackPath @("enable", "--install-directory", $shimDirectory)
 $env:PATH = "$(Split-Path $nodePath);$shimDirectory;$env:PATH"
 $pnpm = Join-Path $shimDirectory "pnpm.cmd"
 
 Push-Location $repositoryRoot
 try {
-  & $pnpm install --frozen-lockfile
+  # Force a native dependency refresh so a lockfile last used on Linux/WSL
+  # cannot leave out Windows-only Electron and esbuild packages.
+  Invoke-NativeCommand $pnpm @("install", "--frozen-lockfile", "--force")
   if (-not $SkipChecks) {
-    & $pnpm check
+    Invoke-NativeCommand $pnpm @("check")
   }
 
-  & $pnpm desktop:dist:win
-  & $pnpm desktop:dist:win:installer
+  Invoke-NativeCommand $pnpm @("desktop:dist:win")
+  Invoke-NativeCommand $pnpm @("desktop:dist:win:installer")
 
   New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
-  $artifacts = Get-ChildItem "apps\desktop\release\Meeting Copilot-*.exe"
+  $artifacts = Get-ChildItem "apps\desktop\release\Meeting Copilot-*.exe" -ErrorAction SilentlyContinue
   if (-not $artifacts) {
     throw "No Windows release artifacts were produced."
   }

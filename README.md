@@ -80,10 +80,12 @@ Generate the desktop executable from the native Windows checkout, not from WSL:
 ```powershell
 cd $env:USERPROFILE\code\meeting-copilot
 pnpm install
-pnpm desktop:dist:win
+.\scripts\build-windows-release.ps1
 ```
 
-The portable executable is created under `apps\desktop\release\`. The current packaged desktop app
+The script generates both the portable executable and NSIS installer, validates the project, and
+copies both artifacts to `Documents\Meeting Copilot\Builds`. The original artifacts remain under
+`apps\desktop\release\`. The current packaged desktop app
 still expects the backend API at `http://127.0.0.1:3333`, so keep the WSL API/PostgreSQL running for
 now:
 

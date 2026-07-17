@@ -1,8 +1,8 @@
 # Meeting Copilot
 
-Privacy-first desktop AI copilot for technical meetings. Hold a global hotkey, capture meeting
-audio, see live transcription, and receive a structured technical answer without turning the app
-into a continuous recorder.
+Privacy-first desktop AI copilot and smart meeting-notes app. Use push-to-talk for a technical
+answer, or record a full meeting to save its transcript and generate structured notes with topics,
+decisions, action items, owners, deadlines, next steps, and open questions.
 
 ## Current MVP
 
@@ -16,6 +16,11 @@ into a continuous recorder.
 - Context profiles, glossary normalization, PostgreSQL schema, and pgvector retrieval abstraction.
 - Audio storage disabled by default. The current capture path never writes audio to disk.
 - Optional always-on-top compact behavior.
+- Home screen for choosing between Meeting Copilot and Smart Meeting Notes.
+- Click-to-start/click-to-finish meeting transcription with an elapsed-time indicator.
+- A dedicated structured AI summarization prompt that does not invent owners or deadlines.
+- Automatic Markdown notes under the user's `Documents/Meeting Copilot` directory.
+- Transcript-first persistence: the raw transcript remains saved if AI summarization fails.
 
 The document ingestion endpoint currently accepts and validates uploads but deliberately does not
 claim indexing is complete. A storage/indexing worker is listed in the delivery checklist.
@@ -96,12 +101,13 @@ pnpm check
 
 ## Security defaults
 
-- Explicit push-to-talk; no continuous recording.
+- Capture is always user-initiated: push-to-talk for the copilot or click-to-record for notes.
 - Provider API key exists only in the backend.
 - Desktop receives a short-lived Realtime client secret from the backend.
 - No Node.js integration or direct remote content in the renderer.
 - IPC request payloads are validated at the main-process boundary.
 - Audio is held in memory and not persisted.
+- Smart Meeting Notes persists text only; the audio capture is still discarded after transcription.
 - OpenAI Responses calls use `store: false`.
 - Logs redact authorization headers, tokens, and audio fields.
 
@@ -110,6 +116,7 @@ pnpm check
 - `GET /api/health`
 - `POST /api/realtime/token`
 - `POST /api/answers`
+- `POST /api/meeting-summaries`
 - `GET|POST|PUT|DELETE /api/context-profiles`
 - `GET|POST|PUT|DELETE /api/glossary`
 - `POST /api/documents/upload`

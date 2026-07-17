@@ -1,8 +1,11 @@
 import {
   AnswerResponseSchema,
+  MeetingSummaryResponseSchema,
   RealtimeTokenResponseSchema,
   type AnswerRequest,
   type AnswerResponse,
+  type MeetingSummaryRequest,
+  type MeetingSummaryResponse,
   type RealtimeTokenRequest,
   type RealtimeTokenResponse
 } from "@meeting-copilot/contracts";
@@ -21,6 +24,12 @@ export class ApiClient {
 
   generateAnswer(request: AnswerRequest): Promise<AnswerResponse> {
     return this.post("/api/answers", request, (value) => AnswerResponseSchema.parse(value));
+  }
+
+  generateMeetingSummary(request: MeetingSummaryRequest): Promise<MeetingSummaryResponse> {
+    return this.post("/api/meeting-summaries", request, (value) =>
+      MeetingSummaryResponseSchema.parse(value)
+    );
   }
 
   private async post<T>(path: string, body: unknown, parse: (value: unknown) => T): Promise<T> {

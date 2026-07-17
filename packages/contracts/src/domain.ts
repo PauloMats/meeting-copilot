@@ -34,6 +34,39 @@ export const AnswerSchema = z.object({
 });
 export type Answer = z.infer<typeof AnswerSchema>;
 
+export const MeetingSummarySchema = z.object({
+  title: z.string(),
+  overview: z.string(),
+  key_topics: z.array(
+    z.object({
+      topic: z.string(),
+      summary: z.string()
+    })
+  ),
+  decisions: z.array(
+    z.object({
+      decision: z.string(),
+      context: z.string()
+    })
+  ),
+  action_items: z.array(
+    z.object({
+      task: z.string(),
+      owner: z.string(),
+      due_date: z.string(),
+      priority: z.enum(["high", "medium", "low"])
+    })
+  ),
+  next_steps: z.array(z.string()),
+  open_questions: z.array(z.string())
+});
+export type MeetingSummary = z.infer<typeof MeetingSummarySchema>;
+
+export const SavedMeetingNoteSchema = z.object({
+  filePath: z.string().min(1)
+});
+export type SavedMeetingNote = z.infer<typeof SavedMeetingNoteSchema>;
+
 export const ContextProfileSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(120),

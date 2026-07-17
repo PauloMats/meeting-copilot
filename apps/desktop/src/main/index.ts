@@ -1,6 +1,8 @@
 import {
   IPC_CHANNELS,
   AnswerRequestSchema,
+  MeetingSummaryRequestSchema,
+  SaveMeetingNoteRequestSchema,
   type AppSettings,
   type CaptureState,
   type DesktopSource,
@@ -15,12 +17,14 @@ import {
   Menu,
   screen,
   session,
+  shell,
   type DesktopCapturerSource
 } from "electron";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { ApiClient } from "./services/api-client.js";
 import { HotkeyService } from "./services/hotkey-service.js";
+import { MeetingNotesService } from "./services/meeting-notes-service.js";
 import { RealtimeTranscriptionService } from "./services/realtime-transcription-service.js";
 import { SettingsService } from "./services/settings-service.js";
 
@@ -80,7 +84,8 @@ function registerIpc(
   settingsService: SettingsService,
   transcription: RealtimeTranscriptionService,
   hotkey: HotkeyService,
-  apiClient: ApiClient
+  apiClient: ApiClient,
+  meetingNotes: MeetingNotesService
 ): void {
   ipcMain.handle(IPC_CHANNELS.captureStart, () => transcription.start(settingsService.get()));
   ipcMain.handle(IPC_CHANNELS.captureStop, () => transcription.commit());
@@ -110,6 +115,17 @@ function registerIpc(
   ipcMain.handle(IPC_CHANNELS.answerGenerate, (_event, request: unknown) =>
     apiClient.generateAnswer(AnswerRequestSchema.parse(request))
   );
+  ipcMain.handle(IPC_CHANNELS.meetingSummaryGenerate, (_event, request: unknown) =>
+    apiClient.generateMeetingSummary(MeetingSummaryRequestSchema.parse(request))
+  );
+  ipcMain.handle(IPC_CHANNELS.meetingNotesSave, (_event, request: unknown) =>
+    meetingNotes.save(SaveMeetingNoteRequestSchema.parse(request))
+  );
+  ipcMain.handle(IPC_CHANNELS.meetingNotesReveal, (_event, filePath: string) => {
+    if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
+    if (!meetingNotes.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
+    shell.showItemInFolder(filePath);
+  });
   ipcMain.handle(IPC_CHANNELS.overlaySet, (_event, enabled: boolean) => {
     setOverlayMode(enabled);
   });
@@ -376,7 +392,9 @@ async function bootstrap(): Promise<void> {
   );
   currentHotkeyService = hotkey;
 
-  registerIpc(settingsService, transcription, hotkey, apiClient);
+  const meetingNotes = new MeetingNotesService(app.getPath("documents"));
+
+  registerIpc(settingsService, transcription, hotkey, apiClient, meetingNotes);
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === "media");
   });

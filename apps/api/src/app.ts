@@ -4,6 +4,7 @@ import {
   AnswerRequestSchema,
   CreateContextProfileSchema,
   CreateGlossaryTermSchema,
+  MeetingSummaryRequestSchema,
   RealtimeTokenRequestSchema,
   UpdateContextProfileSchema,
   UpdateGlossaryTermSchema,
@@ -17,6 +18,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { AppConfig } from "./config.js";
 import { AnswerService } from "./modules/answering/service.js";
+import { MeetingSummaryService } from "./modules/meeting-summary/service.js";
 import {
   MemoryContextRepository,
   type ContextRepository
@@ -97,6 +99,17 @@ export async function buildApp(
         }
       )
     : null;
+  const meetingSummaryService = openai
+    ? new MeetingSummaryService(
+        openai,
+        {
+          basic: config.OPENAI_ANSWER_MODEL_BASIC || config.OPENAI_ANSWER_MODEL,
+          balanced: config.OPENAI_ANSWER_MODEL_BALANCED,
+          advanced: config.OPENAI_ANSWER_MODEL_ADVANCED
+        },
+        config.OPENAI_ANSWER_MAX_OUTPUT_TOKENS
+      )
+    : null;
 
   app.get("/api/health", () => ({
     status: "ok",
@@ -119,6 +132,13 @@ export async function buildApp(
       return reply.code(503).send({ message: "OPENAI_API_KEY is not configured" });
     const input = AnswerRequestSchema.parse(request.body);
     return answerService.generate(input);
+  });
+
+  app.post("/api/meeting-summaries", async (request, reply) => {
+    if (!meetingSummaryService)
+      return reply.code(503).send({ message: "OPENAI_API_KEY is not configured" });
+    const input = MeetingSummaryRequestSchema.parse(request.body);
+    return meetingSummaryService.generate(input);
   });
 
   app.get("/api/context-profiles", () => contextRepository.listProfiles());

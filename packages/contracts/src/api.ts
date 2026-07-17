@@ -4,7 +4,8 @@ import {
   AppSettingsSchema,
   ContextProfileSchema,
   GlossaryTermSchema,
-  IntelligenceLevelSchema
+  IntelligenceLevelSchema,
+  MeetingSummarySchema
 } from "./domain.js";
 
 export const RealtimeTokenRequestSchema = z.object({
@@ -49,6 +50,18 @@ export const AnswerResponseSchema = z.object({
   )
 });
 
+export const MeetingSummaryRequestSchema = z.object({
+  transcript: z.string().min(1).max(200_000),
+  intelligenceLevel: IntelligenceLevelSchema.default("balanced"),
+  language: z.string().min(2).max(10)
+});
+
+export const MeetingSummaryResponseSchema = z.object({
+  summary: MeetingSummarySchema,
+  model: z.string(),
+  intelligenceLevel: IntelligenceLevelSchema
+});
+
 export const CreateContextProfileSchema = ContextProfileSchema.omit({
   id: true,
   createdAt: true,
@@ -69,3 +82,5 @@ export type RealtimeTokenRequest = z.infer<typeof RealtimeTokenRequestSchema>;
 export type RealtimeTokenResponse = z.infer<typeof RealtimeTokenResponseSchema>;
 export type AnswerRequest = z.infer<typeof AnswerRequestSchema>;
 export type AnswerResponse = z.infer<typeof AnswerResponseSchema>;
+export type MeetingSummaryRequest = z.infer<typeof MeetingSummaryRequestSchema>;
+export type MeetingSummaryResponse = z.infer<typeof MeetingSummaryResponseSchema>;

@@ -18,6 +18,10 @@
 - [x] OpenAI file search and pgvector provider abstractions
 - [x] Audio persistence disabled by default
 - [x] Overlay/always-on-top mode
+- [x] Mode picker for Meeting Copilot and Smart Meeting Notes
+- [x] Click-to-start/click-to-finish long-form transcription
+- [x] Structured meeting summary, decisions and action-item extraction
+- [x] Transcript-first local Markdown persistence
 - [x] Unit/API tests and CI workflow
 
 ## Required before public production release

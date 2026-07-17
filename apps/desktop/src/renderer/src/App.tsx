@@ -3,6 +3,7 @@ import { AnswerCard } from "./components/AnswerCard";
 import { MeetingNotes } from "./components/MeetingNotes";
 import { SourcePicker } from "./components/SourcePicker";
 import { StateIndicator } from "./components/StateIndicator";
+import { WindowTitleBar } from "./components/WindowTitleBar";
 import { useCopilot } from "./hooks/use-copilot";
 import { getMessages, languages } from "./i18n";
 
@@ -31,6 +32,7 @@ export function App() {
   const isPortuguese = language === "pt";
   return (
     <main className="app-shell mode-picker-shell">
+      <WindowTitleBar />
       <section className="mode-picker">
         <p className="eyebrow">MEETING COPILOT</p>
         <h1>
@@ -114,6 +116,7 @@ function CopilotWorkspace({ onBack }: { onBack: () => void }) {
 
   return (
     <main className={`app-shell ${isOverlay ? "overlay-shell" : ""}`} style={overlayStyle}>
+      {!isOverlay && <WindowTitleBar />}
       <header className="topbar">
         {isOverlay ? (
           <button

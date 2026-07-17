@@ -3,6 +3,7 @@ import { StateIndicator } from "./StateIndicator";
 import { MeetingSummaryCard } from "./MeetingSummaryCard";
 import { useMeetingNotes } from "../hooks/use-meeting-notes";
 import { languages } from "../i18n";
+import { WindowTitleBar } from "./WindowTitleBar";
 
 export function MeetingNotes({ onBack }: { onBack: () => void }) {
   const notes = useMeetingNotes();
@@ -29,6 +30,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
 
   return (
     <main className="app-shell notes-shell">
+      <WindowTitleBar />
       <header className="topbar notes-topbar">
         <div>
           <p className="eyebrow">{pt ? "ANOTAÇÕES INTELIGENTES" : "SMART MEETING NOTES"}</p>

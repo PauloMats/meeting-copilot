@@ -46,7 +46,10 @@ const api: CopilotApi = {
     reveal: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesReveal, filePath)
   },
   window: {
-    setOverlay: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.overlaySet, enabled)
+    setOverlay: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.overlaySet, enabled),
+    minimize: () => ipcRenderer.invoke(IPC_CHANNELS.windowMinimize),
+    toggleMaximize: () => ipcRenderer.invoke(IPC_CHANNELS.windowToggleMaximize),
+    close: () => ipcRenderer.invoke(IPC_CHANNELS.windowClose)
   },
   events: {
     onHotkeyPressed: (listener) => subscribeSignal(IPC_CHANNELS.hotkeyPressed, listener),

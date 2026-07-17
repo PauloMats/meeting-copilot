@@ -129,6 +129,14 @@ function registerIpc(
   ipcMain.handle(IPC_CHANNELS.overlaySet, (_event, enabled: boolean) => {
     setOverlayMode(enabled);
   });
+  ipcMain.handle(IPC_CHANNELS.windowMinimize, () => mainWindow?.minimize());
+  ipcMain.handle(IPC_CHANNELS.windowToggleMaximize, () => {
+    const window = mainWindow;
+    if (!window || window.isDestroyed()) return;
+    if (window.isMaximized()) window.unmaximize();
+    else window.maximize();
+  });
+  ipcMain.handle(IPC_CHANNELS.windowClose, () => mainWindow?.close());
 }
 
 function buildApplicationMenu(settings: AppSettings): void {
@@ -308,8 +316,8 @@ function setOverlayMode(enabled: boolean): void {
   window.setAlwaysOnTop(false);
   window.setVisibleOnAllWorkspaces(false);
   window.setSkipTaskbar(false);
-  window.setMenuBarVisibility(true);
-  window.setAutoHideMenuBar(false);
+  window.setMenuBarVisibility(false);
+  window.setAutoHideMenuBar(true);
   window.setOpacity(1);
   window.setBackgroundColor("#090d14");
   if (normalWindowBounds) window.setBounds(normalWindowBounds);
@@ -322,8 +330,10 @@ async function createWindow(): Promise<void> {
     minWidth: 820,
     minHeight: 600,
     show: true,
+    frame: false,
+    autoHideMenuBar: true,
     transparent: true,
-    backgroundColor: "#00000000",
+    backgroundColor: "#090d14",
     title: "Meeting Copilot",
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),

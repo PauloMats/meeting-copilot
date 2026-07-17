@@ -35,7 +35,10 @@ export const IPC_CHANNELS = {
   meetingNotesSave: "meeting-notes:save",
   meetingNotesReveal: "meeting-notes:reveal",
   realtimeToken: "realtime:token",
-  overlaySet: "overlay:set"
+  overlaySet: "overlay:set",
+  windowMinimize: "window:minimize",
+  windowToggleMaximize: "window:toggle-maximize",
+  windowClose: "window:close"
 } as const;
 
 export interface DesktopSource {
@@ -89,6 +92,9 @@ export interface CopilotApi {
   };
   window: {
     setOverlay(enabled: boolean): Promise<void>;
+    minimize(): Promise<void>;
+    toggleMaximize(): Promise<void>;
+    close(): Promise<void>;
   };
   events: {
     onHotkeyPressed(listener: () => void): () => void;

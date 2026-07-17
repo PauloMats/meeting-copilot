@@ -48,7 +48,12 @@ Push-Location $repositoryRoot
 try {
   # Force a native dependency refresh so a lockfile last used on Linux/WSL
   # cannot leave out Windows-only Electron and esbuild packages.
-  Invoke-NativeCommand $pnpm @("install", "--frozen-lockfile", "--force")
+  Invoke-NativeCommand $pnpm @(
+    "install",
+    "--frozen-lockfile",
+    "--force",
+    "--config.node-linker=hoisted"
+  )
   if (-not $SkipChecks) {
     Invoke-NativeCommand $pnpm @("check")
   }

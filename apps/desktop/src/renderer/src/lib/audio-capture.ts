@@ -35,20 +35,68 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
 registerProcessor("pcm-capture", PcmCaptureProcessor);
 `;
 
+export interface AudioLevels {
+  system: number;
+  microphone: number | null;
+}
+
+export class SystemAudioUnavailableError extends Error {
+  readonly code = "SYSTEM_AUDIO_UNAVAILABLE";
+
+  constructor() {
+    super("No system audio track was provided by the selected source");
+    this.name = "SystemAudioUnavailableError";
+  }
+}
+
+export function calculateAudioLevel(samples: Float32Array): number {
+  if (samples.length === 0) return 0;
+  let sumOfSquares = 0;
+  for (const sample of samples) sumOfSquares += sample * sample;
+  const rms = Math.sqrt(sumOfSquares / samples.length);
+  if (rms < 0.001) return 0;
+  const decibels = 20 * Math.log10(rms);
+  return Math.max(0, Math.min(1, (decibels + 60) / 60));
+}
+
+function createMeter(context: AudioContext): AnalyserNode {
+  const analyser = context.createAnalyser();
+  analyser.fftSize = 1024;
+  analyser.smoothingTimeConstant = 0.72;
+  return analyser;
+}
+
+function readMeter(analyser: AnalyserNode): number {
+  const samples = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(samples);
+  return calculateAudioLevel(samples);
+}
+
 export class AudioCapture {
   private context: AudioContext | null = null;
   private streams: MediaStream[] = [];
+  private meterTimer: number | null = null;
+  private levelListener: ((levels: AudioLevels) => void) | null = null;
 
-  async start(includeMicrophone: boolean, onChunk: (chunk: ArrayBuffer) => void): Promise<void> {
+  async start(
+    includeMicrophone: boolean,
+    onChunk: (chunk: ArrayBuffer) => void,
+    onLevels?: (levels: AudioLevels) => void
+  ): Promise<void> {
     if (this.context) return;
     const desktop = await navigator.mediaDevices.getDisplayMedia({
       video: true,
       audio: { channelCount: 1, sampleRate: 48000 }
     });
+    if (desktop.getAudioTracks().length === 0) {
+      for (const track of desktop.getTracks()) track.stop();
+      throw new SystemAudioUnavailableError();
+    }
     this.streams.push(desktop);
 
+    let microphone: MediaStream | null = null;
     if (includeMicrophone) {
-      const microphone = await navigator.mediaDevices.getUserMedia({
+      microphone = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           echoCancellation: true,
@@ -61,15 +109,21 @@ export class AudioCapture {
 
     const context = new AudioContext({ sampleRate: 48000, latencyHint: "interactive" });
     const moduleUrl = URL.createObjectURL(new Blob([WORKLET_SOURCE], { type: "text/javascript" }));
-    await context.audioWorklet.addModule(moduleUrl);
-    URL.revokeObjectURL(moduleUrl);
+    try {
+      await context.audioWorklet.addModule(moduleUrl);
+    } finally {
+      URL.revokeObjectURL(moduleUrl);
+    }
 
     const mix = context.createGain();
-    for (const stream of this.streams) {
-      if (stream.getAudioTracks().length > 0) {
-        context.createMediaStreamSource(stream).connect(mix);
-      }
+    const systemMeter = createMeter(context);
+    context.createMediaStreamSource(desktop).connect(systemMeter).connect(mix);
+
+    const microphoneMeter = microphone ? createMeter(context) : null;
+    if (microphone && microphoneMeter) {
+      context.createMediaStreamSource(microphone).connect(microphoneMeter).connect(mix);
     }
+
     const worklet = new AudioWorkletNode(context, "pcm-capture", {
       numberOfInputs: 1,
       numberOfOutputs: 0,
@@ -78,14 +132,30 @@ export class AudioCapture {
     worklet.port.onmessage = (event: MessageEvent<ArrayBuffer>) => onChunk(event.data);
     mix.connect(worklet);
     this.context = context;
+    this.levelListener = onLevels ?? null;
+    if (onLevels) {
+      onLevels({ system: 0, microphone: microphoneMeter ? 0 : null });
+      this.meterTimer = window.setInterval(() => {
+        onLevels({
+          system: readMeter(systemMeter),
+          microphone: microphoneMeter ? readMeter(microphoneMeter) : null
+        });
+      }, 100);
+    }
   }
 
   async stop(): Promise<void> {
+    if (this.meterTimer !== null) {
+      window.clearInterval(this.meterTimer);
+      this.meterTimer = null;
+    }
     for (const stream of this.streams) {
       for (const track of stream.getTracks()) track.stop();
     }
     this.streams = [];
     await this.context?.close();
     this.context = null;
+    this.levelListener?.({ system: 0, microphone: null });
+    this.levelListener = null;
   }
 }

@@ -40,6 +40,20 @@ export interface AudioLevels {
   microphone: number | null;
 }
 
+export type AudioSourceKind = "system" | "microphone";
+
+export class AudioSourceStartError extends Error {
+  readonly code = "AUDIO_SOURCE_START_FAILED";
+
+  constructor(
+    readonly source: AudioSourceKind,
+    readonly originalMessage: string
+  ) {
+    super(originalMessage);
+    this.name = "AudioSourceStartError";
+  }
+}
+
 export class SystemAudioUnavailableError extends Error {
   readonly code = "SYSTEM_AUDIO_UNAVAILABLE";
 
@@ -84,10 +98,15 @@ export class AudioCapture {
     onLevels?: (levels: AudioLevels) => void
   ): Promise<void> {
     if (this.context) return;
-    const desktop = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: { channelCount: 1, sampleRate: 48000 }
-    });
+    let desktop: MediaStream;
+    try {
+      desktop = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    } catch (cause) {
+      throw new AudioSourceStartError(
+        "system",
+        cause instanceof Error ? cause.message : "Could not start system audio"
+      );
+    }
     if (desktop.getAudioTracks().length === 0) {
       for (const track of desktop.getTracks()) track.stop();
       throw new SystemAudioUnavailableError();
@@ -96,14 +115,21 @@ export class AudioCapture {
 
     let microphone: MediaStream | null = null;
     if (includeMicrophone) {
-      microphone = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
+      try {
+        microphone = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (cause) {
+        throw new AudioSourceStartError(
+          "microphone",
+          cause instanceof Error ? cause.message : "Could not start microphone"
+        );
+      }
       this.streams.push(microphone);
     }
 

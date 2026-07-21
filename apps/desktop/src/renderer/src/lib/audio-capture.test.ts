@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateAudioLevel } from "./audio-capture";
+import { AudioSourceStartError, calculateAudioLevel } from "./audio-capture";
 
 describe("calculateAudioLevel", () => {
   it("returns zero for silence and very low noise", () => {
@@ -14,5 +14,12 @@ describe("calculateAudioLevel", () => {
 
   it("clamps full-scale audio to one", () => {
     expect(calculateAudioLevel(new Float32Array(32).fill(1))).toBe(1);
+  });
+
+  it("identifies which Windows audio source failed", () => {
+    const error = new AudioSourceStartError("system", "Could not start audio source");
+    expect(error.code).toBe("AUDIO_SOURCE_START_FAILED");
+    expect(error.source).toBe("system");
+    expect(error.message).toBe("Could not start audio source");
   });
 });

@@ -32,6 +32,7 @@ export class RealtimeTranscriptionService {
   private socket: WebSocket | null = null;
   private committed = false;
   private failed = false;
+  private cancelled = false;
 
   constructor(
     private readonly apiClient: ApiClient,
@@ -40,6 +41,7 @@ export class RealtimeTranscriptionService {
 
   async start(settings: AppSettings): Promise<void> {
     if (this.socket) throw new Error("A transcription session is already active");
+    this.cancelled = false;
     this.events.state("transcribing");
     const secret = await this.apiClient.createRealtimeToken({
       language: settings.language,
@@ -67,7 +69,11 @@ export class RealtimeTranscriptionService {
       socket.on("message", (data) => this.handleProviderEvent(rawDataToString(data)));
       socket.on("close", () => {
         this.socket = null;
-        if (!this.committed && !this.failed) this.events.state("idle");
+        if (!this.committed && !this.failed && !this.cancelled) {
+          this.failed = true;
+          this.events.error("Realtime transcription connection closed unexpectedly");
+          this.events.state("error");
+        }
       });
     });
   }
@@ -90,6 +96,7 @@ export class RealtimeTranscriptionService {
   }
 
   cancel(): void {
+    this.cancelled = true;
     this.committed = false;
     this.socket?.close(1000, "cancelled");
     this.socket = null;

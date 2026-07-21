@@ -1,10 +1,18 @@
 import type {
   AnswerRequest,
   AnswerResponse,
+  MeetingSummaryRequest,
+  MeetingSummaryResponse,
   RealtimeTokenRequest,
   RealtimeTokenResponse
 } from "./api.js";
-import type { AppSettings, CaptureState } from "./domain.js";
+import { z } from "zod";
+import {
+  MeetingSummarySchema,
+  type AppSettings,
+  type CaptureState,
+  type SavedMeetingNote
+} from "./domain.js";
 
 export const IPC_CHANNELS = {
   captureStart: "capture:start",
@@ -23,8 +31,14 @@ export const IPC_CHANNELS = {
   settingsUpdate: "settings:update",
   settingsChanged: "settings:changed",
   answerGenerate: "answer:generate",
+  meetingSummaryGenerate: "meeting-summary:generate",
+  meetingNotesSave: "meeting-notes:save",
+  meetingNotesReveal: "meeting-notes:reveal",
   realtimeToken: "realtime:token",
-  overlaySet: "overlay:set"
+  overlaySet: "overlay:set",
+  windowMinimize: "window:minimize",
+  windowToggleMaximize: "window:toggle-maximize",
+  windowClose: "window:close"
 } as const;
 
 export interface DesktopSource {
@@ -42,6 +56,15 @@ export interface TranscriptFinal {
   itemId: string;
   transcript: string;
 }
+
+export const SaveMeetingNoteRequestSchema = z.object({
+  transcript: z.string().min(1).max(200_000),
+  summary: MeetingSummarySchema.nullable(),
+  language: z.string().min(2).max(10),
+  startedAt: z.string().datetime(),
+  endedAt: z.string().datetime()
+});
+export type SaveMeetingNoteRequest = z.infer<typeof SaveMeetingNoteRequestSchema>;
 
 export interface CopilotApi {
   capture: {
@@ -61,9 +84,17 @@ export interface CopilotApi {
   backend: {
     createRealtimeToken(request: RealtimeTokenRequest): Promise<RealtimeTokenResponse>;
     generateAnswer(request: AnswerRequest): Promise<AnswerResponse>;
+    generateMeetingSummary(request: MeetingSummaryRequest): Promise<MeetingSummaryResponse>;
+  };
+  meetingNotes: {
+    save(request: SaveMeetingNoteRequest): Promise<SavedMeetingNote>;
+    reveal(filePath: string): Promise<void>;
   };
   window: {
     setOverlay(enabled: boolean): Promise<void>;
+    minimize(): Promise<void>;
+    toggleMaximize(): Promise<void>;
+    close(): Promise<void>;
   };
   events: {
     onHotkeyPressed(listener: () => void): () => void;

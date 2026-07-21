@@ -27,6 +27,18 @@ describe("api", () => {
     await app.close();
   });
 
+  it("returns 503 when meeting summary generation is unavailable", async () => {
+    const app = await buildApp(loadConfig({ NODE_ENV: "test", LOG_LEVEL: "silent" }));
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/meeting-summaries",
+      payload: { transcript: "A short meeting transcript", language: "en" }
+    });
+
+    expect(response.statusCode).toBe(503);
+    await app.close();
+  });
+
   it("preserves client error status codes", async () => {
     const app = await buildApp(loadConfig({ NODE_ENV: "test", LOG_LEVEL: "silent" }));
     const response = await app.inject({

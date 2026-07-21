@@ -25,6 +25,7 @@ Node.js integration. It can only call the methods in `CopilotApi`.
 - `AppSettings`: hotkey, microphone inclusion, submission mode, language, delay, retention, audio
   persistence and overlay settings.
 - `Answer`: direct answer, explanation, example, assumptions, follow-ups and confidence.
+- `MeetingSummary`: overview, topics, decisions, action items, next steps and open questions.
 - `ContextProfile`: project description, stack and business context.
 - `GlossaryTerm`: acronym, project, vendor, codeword or synonym replacement.
 
@@ -54,6 +55,17 @@ Canonical schemas live in `packages/contracts/src`.
 5. Call the Responses API with `store: false` and a Zod-backed structured output.
 6. Validate the response again and render it in the required layers.
 
+## Smart meeting-notes flow
+
+1. The user explicitly starts a long-form capture from the Smart Meeting Notes mode.
+2. The existing desktop-audio and optional microphone pipeline streams transcription deltas.
+3. On the second click, media tracks stop and the transcription buffer is committed.
+4. Electron saves a transcript-first Markdown draft under `Documents/Meeting Copilot`.
+5. `POST /api/meeting-summaries` applies a dedicated structured prompt that avoids invented owners,
+   deadlines and decisions.
+6. Electron rewrites the same Markdown file with the validated summary and full transcript. If the
+   provider fails, the transcript-first draft remains available.
+
 ## Retrieval abstraction
 
 - `NullRetrievalProvider`: no-op and safe default.
@@ -67,6 +79,7 @@ the document indexing worker remain explicit follow-up work.
 
 - `realtime-token`: short-lived transcription credentials.
 - `answering`: context assembly and structured generation.
+- `meeting-summary`: structured meeting notes and action extraction.
 - `glossary`: deterministic normalization.
 - `context-profiles`: PostgreSQL repository with an in-memory test fallback.
 - `retrieval`: provider interface and implementations.
@@ -76,15 +89,16 @@ the document indexing worker remain explicit follow-up work.
 ## IPC surface
 
 - Commands: capture start/stop/cancel, audio chunk, source list/select, settings get/update, answer
-  generation, token creation and overlay mode.
+  and meeting-summary generation, notes save/reveal, token creation and overlay mode.
 - Events: hotkey pressed/released, state changed, transcript delta/final and transcription error.
 
 All channel names are centralized in `IPC_CHANNELS`.
 
 ## Privacy and retention
 
-- No continuous recording and no automatic capture at startup.
+- No automatic capture at startup. Long-form recording only starts after an explicit user click.
 - Audio storage disabled by default and absent from the active capture pipeline.
+- Smart Meeting Notes stores Markdown text locally but never writes the captured audio to disk.
 - Transcript retention defaults to 30 days; audio retention defaults to zero.
 - The schema supports expiration timestamps and audit events.
 - A scheduled retention worker and user-facing deletion/history screens are required before a

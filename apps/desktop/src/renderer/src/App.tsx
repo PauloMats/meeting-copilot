@@ -1,11 +1,94 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { AnswerCard } from "./components/AnswerCard";
+import { MeetingNotes } from "./components/MeetingNotes";
 import { SourcePicker } from "./components/SourcePicker";
 import { StateIndicator } from "./components/StateIndicator";
+import { WindowTitleBar } from "./components/WindowTitleBar";
 import { useCopilot } from "./hooks/use-copilot";
 import { getMessages, languages } from "./i18n";
 
+type AppMode = "copilot" | "notes" | null;
+
 export function App() {
+  const [mode, setMode] = useState<AppMode>(null);
+  const [language, setLanguage] = useState("pt");
+
+  useEffect(() => {
+    const dispose = window.copilot.events.onSettingsChanged((settings) => {
+      setLanguage(settings.language);
+    });
+    void window.copilot.settings.get().then((settings) => {
+      setLanguage(settings.language);
+      if (settings.overlayEnabled) {
+        void window.copilot.settings.update({ overlayEnabled: false });
+      }
+    });
+    return dispose;
+  }, []);
+
+  if (mode === "copilot") return <CopilotWorkspace onBack={() => setMode(null)} />;
+  if (mode === "notes") return <MeetingNotes onBack={() => setMode(null)} />;
+
+  const isPortuguese = language === "pt";
+  return (
+    <main className="app-shell mode-picker-shell">
+      <WindowTitleBar />
+      <section className="mode-picker">
+        <p className="eyebrow">MEETING COPILOT</p>
+        <h1>
+          {isPortuguese ? "Como posso ajudar na sua reunião?" : "How can I help in your meeting?"}
+        </h1>
+        <p className="mode-picker-intro">
+          {isPortuguese
+            ? "Escolha uma experiência. Você pode voltar e trocar de modo a qualquer momento."
+            : "Choose an experience. You can return and switch modes at any time."}
+        </p>
+        <div className="mode-cards">
+          <button className="mode-card" onClick={() => setMode("copilot")}>
+            <span className="mode-icon" aria-hidden="true">
+              ⌁
+            </span>
+            <span className="mode-card-copy">
+              <strong>{isPortuguese ? "Copiloto de Reuniões" : "Meeting Copilot"}</strong>
+              <small>
+                {isPortuguese
+                  ? "Segure o atalho, transcreva uma pergunta e receba uma resposta em tempo real."
+                  : "Hold the hotkey, transcribe a question, and get a real-time answer."}
+              </small>
+            </span>
+            <span className="mode-arrow" aria-hidden="true">
+              →
+            </span>
+          </button>
+          <button className="mode-card mode-card-featured" onClick={() => setMode("notes")}>
+            <span className="mode-badge">{isPortuguese ? "NOVO" : "NEW"}</span>
+            <span className="mode-icon" aria-hidden="true">
+              ●
+            </span>
+            <span className="mode-card-copy">
+              <strong>{isPortuguese ? "Anotações Inteligentes" : "Smart Meeting Notes"}</strong>
+              <small>
+                {isPortuguese
+                  ? "Grave a conversa, salve a transcrição e gere uma ata com decisões e tarefas."
+                  : "Record the conversation, save the transcript, and generate decisions and tasks."}
+              </small>
+            </span>
+            <span className="mode-arrow" aria-hidden="true">
+              →
+            </span>
+          </button>
+        </div>
+        <p className="privacy-note">
+          {isPortuguese
+            ? "O áudio não é salvo. Apenas a transcrição e o resumo ficam no seu computador."
+            : "Audio is not saved. Only the transcript and summary remain on your computer."}
+        </p>
+      </section>
+    </main>
+  );
+}
+
+function CopilotWorkspace({ onBack }: { onBack: () => void }) {
   const copilot = useCopilot();
   const canEdit = copilot.state === "ready_to_send" && !copilot.settings.autoSubmit;
   const isOverlay = copilot.settings.overlayEnabled;
@@ -33,6 +116,7 @@ export function App() {
 
   return (
     <main className={`app-shell ${isOverlay ? "overlay-shell" : ""}`} style={overlayStyle}>
+      {!isOverlay && <WindowTitleBar />}
       <header className="topbar">
         {isOverlay ? (
           <button
@@ -48,6 +132,17 @@ export function App() {
               <h1>{t.hero}</h1>
             </div>
             <div className="topbar-actions">
+              <button
+                className="secondary compact-button"
+                onClick={() =>
+                  void copilot
+                    .cancel()
+                    .finally(onBack)
+                    .catch(() => undefined)
+                }
+              >
+                ← {copilot.settings.language === "pt" ? "Início" : "Home"}
+              </button>
               <StateIndicator state={copilot.state} labels={t.states} />
             </div>
           </>
@@ -100,8 +195,8 @@ export function App() {
                 value={copilot.settings.transcriptionDelay}
                 onChange={(event) =>
                   void copilot.updateSettings({
-                    transcriptionDelay:
-                      event.target.value as typeof copilot.settings.transcriptionDelay
+                    transcriptionDelay: event.target
+                      .value as typeof copilot.settings.transcriptionDelay
                   })
                 }
               >
@@ -118,8 +213,8 @@ export function App() {
                 value={copilot.settings.intelligenceLevel}
                 onChange={(event) =>
                   void copilot.updateSettings({
-                    intelligenceLevel:
-                      event.target.value as typeof copilot.settings.intelligenceLevel
+                    intelligenceLevel: event.target
+                      .value as typeof copilot.settings.intelligenceLevel
                   })
                 }
               >
@@ -185,8 +280,8 @@ export function App() {
                   value={copilot.settings.overlayTextTheme}
                   onChange={(event) =>
                     void copilot.updateSettings({
-                      overlayTextTheme:
-                        event.target.value as typeof copilot.settings.overlayTextTheme
+                      overlayTextTheme: event.target
+                        .value as typeof copilot.settings.overlayTextTheme
                     })
                   }
                 >

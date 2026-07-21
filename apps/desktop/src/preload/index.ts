@@ -37,10 +37,19 @@ const api: CopilotApi = {
   },
   backend: {
     createRealtimeToken: (request) => ipcRenderer.invoke(IPC_CHANNELS.realtimeToken, request),
-    generateAnswer: (request) => ipcRenderer.invoke(IPC_CHANNELS.answerGenerate, request)
+    generateAnswer: (request) => ipcRenderer.invoke(IPC_CHANNELS.answerGenerate, request),
+    generateMeetingSummary: (request) =>
+      ipcRenderer.invoke(IPC_CHANNELS.meetingSummaryGenerate, request)
+  },
+  meetingNotes: {
+    save: (request) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesSave, request),
+    reveal: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesReveal, filePath)
   },
   window: {
-    setOverlay: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.overlaySet, enabled)
+    setOverlay: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.overlaySet, enabled),
+    minimize: () => ipcRenderer.invoke(IPC_CHANNELS.windowMinimize),
+    toggleMaximize: () => ipcRenderer.invoke(IPC_CHANNELS.windowToggleMaximize),
+    close: () => ipcRenderer.invoke(IPC_CHANNELS.windowClose)
   },
   events: {
     onHotkeyPressed: (listener) => subscribeSignal(IPC_CHANNELS.hotkeyPressed, listener),

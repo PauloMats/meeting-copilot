@@ -5,31 +5,20 @@ import {
   SaveMeetingNoteRequestSchema,
   type AppSettings,
   type CaptureState,
-  type DesktopSource,
   RealtimeTokenRequestSchema
 } from "@meeting-copilot/contracts";
 import { config as loadEnvironment } from "dotenv";
-import {
-  app,
-  BrowserWindow,
-  desktopCapturer,
-  ipcMain,
-  Menu,
-  screen,
-  session,
-  shell,
-  type DesktopCapturerSource
-} from "electron";
+import { app, BrowserWindow, ipcMain, Menu, screen, shell } from "electron";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { ApiClient } from "./services/api-client.js";
 import { HotkeyService } from "./services/hotkey-service.js";
 import { MeetingNotesService } from "./services/meeting-notes-service.js";
+import { NativeAudioService } from "./services/native-audio-service.js";
 import { RealtimeTranscriptionService } from "./services/realtime-transcription-service.js";
 import { SettingsService } from "./services/settings-service.js";
 
 let mainWindow: BrowserWindow | null = null;
-let selectedDesktopSourceId: string | null = null;
 let normalWindowBounds: Electron.Rectangle | null = null;
 let currentSettingsService: SettingsService | null = null;
 let currentHotkeyService: HotkeyService | null = null;
@@ -72,37 +61,27 @@ function loadDesktopEnvironment(): void {
   if (envFile) loadEnvironment({ path: envFile });
 }
 
-async function sources(): Promise<DesktopCapturerSource[]> {
-  return desktopCapturer.getSources({
-    types: ["screen", "window"],
-    thumbnailSize: { width: 320, height: 180 },
-    fetchWindowIcons: true
-  });
-}
-
 function registerIpc(
   settingsService: SettingsService,
   transcription: RealtimeTranscriptionService,
   hotkey: HotkeyService,
   apiClient: ApiClient,
-  meetingNotes: MeetingNotesService
+  meetingNotes: MeetingNotesService,
+  nativeAudio: NativeAudioService
 ): void {
   ipcMain.handle(IPC_CHANNELS.captureStart, () => transcription.start(settingsService.get()));
   ipcMain.handle(IPC_CHANNELS.captureStop, () => transcription.commit());
   ipcMain.handle(IPC_CHANNELS.captureCancel, () => transcription.cancel());
   ipcMain.on(IPC_CHANNELS.audioChunk, (_event, chunk: ArrayBuffer) => transcription.append(chunk));
-  ipcMain.handle(
-    IPC_CHANNELS.listDesktopSources,
-    async (): Promise<DesktopSource[]> =>
-      (await sources()).map((source) => ({
-        id: source.id,
-        name: source.name,
-        thumbnailDataUrl: source.thumbnail.toDataURL()
-      }))
-  );
-  ipcMain.handle(IPC_CHANNELS.selectDesktopSource, (_event, id: string) => {
-    selectedDesktopSourceId = id;
+  ipcMain.handle(IPC_CHANNELS.listAudioDevices, () => nativeAudio.listDevices());
+  ipcMain.handle(IPC_CHANNELS.selectAudioDevice, (_event, id: string) => {
+    if (typeof id !== "string" || !id) throw new Error("Invalid audio device id");
+    nativeAudio.selectDevice(id);
   });
+  ipcMain.handle(IPC_CHANNELS.nativeAudioStart, (_event, includeMicrophone: boolean) =>
+    nativeAudio.start(Boolean(includeMicrophone))
+  );
+  ipcMain.handle(IPC_CHANNELS.nativeAudioStop, () => nativeAudio.stop());
   ipcMain.handle(IPC_CHANNELS.settingsGet, () => settingsService.get());
   ipcMain.handle(IPC_CHANNELS.settingsUpdate, (_event, patch: Partial<AppSettings>) => {
     const next = applySettingsPatch(patch);
@@ -403,26 +382,19 @@ async function bootstrap(): Promise<void> {
   currentHotkeyService = hotkey;
 
   const meetingNotes = new MeetingNotesService(app.getPath("documents"));
+  const nativeAudioExecutable = app.isPackaged
+    ? join(process.resourcesPath, "native-audio", "MeetingCopilot.AudioCapture.exe")
+    : resolve(
+        app.getAppPath(),
+        "../../native/windows-audio-capture/publish/MeetingCopilot.AudioCapture.exe"
+      );
+  const nativeAudio = new NativeAudioService(nativeAudioExecutable, {
+    chunk: (chunk) => send(IPC_CHANNELS.nativeAudioChunk, chunk),
+    levels: (levels) => send(IPC_CHANNELS.nativeAudioLevels, levels),
+    error: (message) => send(IPC_CHANNELS.nativeAudioError, message)
+  });
 
-  registerIpc(settingsService, transcription, hotkey, apiClient, meetingNotes);
-  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(permission === "media");
-  });
-  session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
-    void sources()
-      .then((available) => {
-        const source =
-          available.find((candidate) => candidate.id === selectedDesktopSourceId) ?? available[0];
-        if (!source) {
-          callback({});
-          return;
-        }
-        callback(
-          process.platform === "win32" ? { video: source, audio: "loopback" } : { video: source }
-        );
-      })
-      .catch(() => callback({}));
-  });
+  registerIpc(settingsService, transcription, hotkey, apiClient, meetingNotes, nativeAudio);
   await createWindow();
   const initialSettings = settingsService.get();
   buildApplicationMenu(initialSettings);
@@ -432,7 +404,10 @@ async function bootstrap(): Promise<void> {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
-  app.on("before-quit", () => hotkey.stop());
+  app.on("before-quit", () => {
+    hotkey.stop();
+    void nativeAudio.stop();
+  });
 }
 
 void app.whenReady().then(bootstrap).catch(console.error);

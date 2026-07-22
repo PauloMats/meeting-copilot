@@ -27,9 +27,12 @@ const api: CopilotApi = {
     cancel: () => ipcRenderer.invoke(IPC_CHANNELS.captureCancel),
     sendAudioChunk: (chunk) => ipcRenderer.send(IPC_CHANNELS.audioChunk, chunk)
   },
-  desktopSources: {
-    list: () => ipcRenderer.invoke(IPC_CHANNELS.listDesktopSources),
-    select: (id) => ipcRenderer.invoke(IPC_CHANNELS.selectDesktopSource, id)
+  systemAudio: {
+    listDevices: () => ipcRenderer.invoke(IPC_CHANNELS.listAudioDevices),
+    select: (id) => ipcRenderer.invoke(IPC_CHANNELS.selectAudioDevice, id),
+    start: (includeMicrophone) =>
+      ipcRenderer.invoke(IPC_CHANNELS.nativeAudioStart, includeMicrophone),
+    stop: () => ipcRenderer.invoke(IPC_CHANNELS.nativeAudioStop)
   },
   settings: {
     get: () => ipcRenderer.invoke(IPC_CHANNELS.settingsGet),
@@ -60,7 +63,12 @@ const api: CopilotApi = {
       subscribe<TranscriptDelta>(IPC_CHANNELS.transcriptDelta, listener),
     onTranscriptFinal: (listener) =>
       subscribe<TranscriptFinal>(IPC_CHANNELS.transcriptFinal, listener),
-    onTranscriptionError: (listener) => subscribe<string>(IPC_CHANNELS.transcriptionError, listener)
+    onTranscriptionError: (listener) =>
+      subscribe<string>(IPC_CHANNELS.transcriptionError, listener),
+    onNativeAudioChunk: (listener) =>
+      subscribe<ArrayBuffer>(IPC_CHANNELS.nativeAudioChunk, listener),
+    onNativeAudioLevels: (listener) => subscribe(IPC_CHANNELS.nativeAudioLevels, listener),
+    onNativeAudioError: (listener) => subscribe<string>(IPC_CHANNELS.nativeAudioError, listener)
   }
 };
 

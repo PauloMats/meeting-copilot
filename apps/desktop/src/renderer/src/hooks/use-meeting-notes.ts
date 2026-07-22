@@ -5,7 +5,14 @@ import {
   type MeetingSummary
 } from "@meeting-copilot/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AudioCapture } from "../lib/audio-capture";
+import {
+  AudioCapture,
+  AudioSourceStartError,
+  SystemAudioUnavailableError,
+  type AudioLevels
+} from "../lib/audio-capture";
+
+const EMPTY_AUDIO_LEVELS: AudioLevels = { system: 0, microphone: null };
 
 export function useMeetingNotes() {
   const [state, setState] = useState<CaptureState>("idle");
@@ -16,6 +23,7 @@ export function useMeetingNotes() {
   const [savedPath, setSavedPath] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [audioLevels, setAudioLevels] = useState<AudioLevels>(EMPTY_AUDIO_LEVELS);
   const capture = useRef(new AudioCapture());
   const transcriptRef = useRef("");
   const startedAt = useRef<string | null>(null);
@@ -104,23 +112,51 @@ export function useMeetingNotes() {
     setSummary(null);
     setSavedPath(null);
     setError(null);
+    setAudioLevels({
+      system: 0,
+      microphone: settings.includeMicrophone ? 0 : null
+    });
     finalizationStarted.current = false;
     startedAt.current = new Date().toISOString();
     try {
       await window.copilot.capture.start();
-      await capture.current.start(settings.includeMicrophone, (chunk) =>
-        window.copilot.capture.sendAudioChunk(chunk)
+      await capture.current.start(
+        settings.includeMicrophone,
+        (chunk) => window.copilot.capture.sendAudioChunk(chunk),
+        setAudioLevels,
+        (message) => {
+          setIsRecording(false);
+          setError(message);
+          void capture.current.stop();
+          void window.copilot.capture.stop();
+        }
       );
     } catch (cause) {
       await capture.current.stop();
       await window.copilot.capture.cancel();
       setIsRecording(false);
       setState("error");
-      setError(cause instanceof Error ? cause.message : "Could not start recording");
+      setError(
+        cause instanceof SystemAudioUnavailableError
+          ? settings.language === "pt"
+            ? "Nenhuma trilha de áudio do PC foi encontrada. Selecione outra tela ou janela e confirme que o som está saindo pelo dispositivo padrão do Windows."
+            : "No system audio track was found. Select another screen or window and confirm that audio is playing through the default Windows output device."
+          : cause instanceof AudioSourceStartError && cause.source === "system"
+            ? settings.language === "pt"
+              ? `O WASAPI não conseguiu iniciar a saída selecionada. Confirme se ela é a mesma usada pela reunião (por exemplo, JBL Quantum Game ou Chat). Detalhe: ${cause.originalMessage}`
+              : `WASAPI could not start the selected output. Confirm it is the same device used by the meeting (for example, JBL Quantum Game or Chat). Detail: ${cause.originalMessage}`
+            : cause instanceof AudioSourceStartError
+              ? settings.language === "pt"
+                ? `O Windows não conseguiu iniciar o microfone. Verifique a permissão ou desative “Incluir microfone” para gravar apenas o áudio do PC. Detalhe: ${cause.originalMessage}`
+                : `Windows could not start the microphone. Check its permission or disable “Include microphone” to capture system audio only. Detail: ${cause.originalMessage}`
+              : cause instanceof Error
+                ? cause.message
+                : "Could not start recording"
+      );
     } finally {
       startInFlight.current = false;
     }
-  }, [isRecording, settings.includeMicrophone, state]);
+  }, [isRecording, settings.includeMicrophone, settings.language, state]);
 
   const stopRecording = useCallback(async () => {
     if (!isRecording) return;
@@ -210,6 +246,7 @@ export function useMeetingNotes() {
     savedPath,
     isRecording,
     elapsedSeconds,
+    audioLevels,
     startRecording,
     stopRecording,
     cancel,

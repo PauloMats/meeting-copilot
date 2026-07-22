@@ -1,3 +1,5 @@
+import type { AudioDevice } from "@meeting-copilot/contracts";
+import { useState } from "react";
 import { SourcePicker } from "./SourcePicker";
 import { StateIndicator } from "./StateIndicator";
 import { MeetingSummaryCard } from "./MeetingSummaryCard";
@@ -7,6 +9,7 @@ import { WindowTitleBar } from "./WindowTitleBar";
 
 export function MeetingNotes({ onBack }: { onBack: () => void }) {
   const notes = useMeetingNotes();
+  const [selectedSource, setSelectedSource] = useState<AudioDevice | null>(null);
   const pt = notes.settings.language === "pt";
   const isBusy =
     notes.state === "thinking" || (!notes.isRecording && notes.state === "transcribing");
@@ -53,7 +56,14 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
       </header>
 
       <section className="control-panel notes-controls">
-        <SourcePicker label={pt ? "Fonte do áudio" : "Audio source"} />
+        <SourcePicker
+          label={pt ? "Saída de áudio do Windows" : "Windows audio output"}
+          disabled={notes.isRecording || isBusy}
+          requireExplicitSelection
+          emptyLabel={pt ? "Selecione o dispositivo…" : "Select the output device…"}
+          unavailableLabel={pt ? "Nenhuma saída de áudio encontrada" : "No audio output found"}
+          onSelectionChange={setSelectedSource}
+        />
         <label className="field">
           {pt ? "Idioma" : "Language"}
           <select
@@ -97,6 +107,54 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         </label>
       </section>
 
+      {!selectedSource && (
+        <p className="source-selection-hint">
+          {pt
+            ? "Selecione a mesma saída usada pelo Teams, Discord ou navegador — por exemplo, JBL Quantum Game ou Chat."
+            : "Select the same output used by Teams, Discord, or your browser — for example, JBL Quantum Game or Chat."}
+        </p>
+      )}
+
+      <section className="audio-monitor" aria-label={pt ? "Monitor de áudio" : "Audio monitor"}>
+        <div className="audio-monitor-heading">
+          <div>
+            <span>{pt ? "ENTRADAS DE ÁUDIO" : "AUDIO INPUTS"}</span>
+            <strong>
+              {selectedSource
+                ? selectedSource.name
+                : pt
+                  ? "Saída ainda não selecionada"
+                  : "No output selected yet"}
+            </strong>
+          </div>
+          <small>
+            {notes.isRecording
+              ? pt
+                ? "Monitorando em tempo real"
+                : "Monitoring in real time"
+              : pt
+                ? "Os níveis aparecem ao iniciar"
+                : "Levels appear when recording starts"}
+          </small>
+        </div>
+        <div className="audio-meter-grid">
+          <AudioLevelMeter
+            label={pt ? "Áudio do PC" : "System audio"}
+            level={notes.audioLevels.system}
+            active={notes.isRecording}
+            enabled={Boolean(selectedSource)}
+            pt={pt}
+          />
+          <AudioLevelMeter
+            label={pt ? "Microfone" : "Microphone"}
+            level={notes.audioLevels.microphone ?? 0}
+            active={notes.isRecording}
+            enabled={notes.settings.includeMicrophone}
+            pt={pt}
+          />
+        </div>
+      </section>
+
       <section className={`recording-console ${notes.isRecording ? "is-recording" : ""}`}>
         <div className="recording-copy">
           <span className="recording-kicker">
@@ -133,7 +191,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         </div>
         <button
           className={`record-button ${notes.isRecording ? "record-button-stop" : ""}`}
-          disabled={isBusy}
+          disabled={isBusy || (!notes.isRecording && !selectedSource)}
           onClick={() => void (notes.isRecording ? notes.stopRecording() : notes.startRecording())}
         >
           <span className="record-button-icon" aria-hidden="true" />
@@ -204,6 +262,57 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         </div>
       </section>
     </main>
+  );
+}
+
+function AudioLevelMeter({
+  label,
+  level,
+  active,
+  enabled,
+  pt
+}: {
+  label: string;
+  level: number;
+  active: boolean;
+  enabled: boolean;
+  pt: boolean;
+}) {
+  const percentage = Math.round(Math.max(0, Math.min(1, level)) * 100);
+  const hasSignal = percentage >= 3;
+  const status = !enabled
+    ? pt
+      ? "Desativado"
+      : "Disabled"
+    : !active
+      ? pt
+        ? "Pronto"
+        : "Ready"
+      : hasSignal
+        ? pt
+          ? "Sinal detectado"
+          : "Signal detected"
+        : pt
+          ? "Aguardando sinal"
+          : "Waiting for signal";
+
+  return (
+    <div className={`audio-meter ${enabled ? "is-enabled" : "is-disabled"}`}>
+      <div className="audio-meter-label">
+        <span>{label}</span>
+        <small>{status}</small>
+      </div>
+      <div
+        className="audio-meter-track"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percentage}
+      >
+        <span className="audio-meter-fill" style={{ width: `${enabled ? percentage : 0}%` }} />
+      </div>
+    </div>
   );
 }
 

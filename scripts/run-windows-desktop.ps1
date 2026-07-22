@@ -3,6 +3,14 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $node = Get-Command node -ErrorAction SilentlyContinue
 $corepack = Get-Command corepack -ErrorAction SilentlyContinue
+$portableNodeDirectory = Join-Path $env:LOCALAPPDATA "meeting-copilot\toolchain\node-v22.14.0-win-x64"
+
+if (-not $node -and (Test-Path (Join-Path $portableNodeDirectory "node.exe"))) {
+  $node = Get-Item (Join-Path $portableNodeDirectory "node.exe")
+}
+if (-not $corepack -and (Test-Path (Join-Path $portableNodeDirectory "corepack.cmd"))) {
+  $corepack = Get-Item (Join-Path $portableNodeDirectory "corepack.cmd")
+}
 
 if (-not $node -and (Test-Path "$env:ProgramFiles\nodejs\node.exe")) {
   $node = Get-Item "$env:ProgramFiles\nodejs\node.exe"
@@ -28,6 +36,12 @@ $pnpm = Join-Path $shimDirectory "pnpm.cmd"
 
 Push-Location $repositoryRoot
 try {
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+    (Join-Path $PSScriptRoot "build-native-audio.ps1")
+  if ($LASTEXITCODE -ne 0) {
+    throw "Could not build the native WASAPI audio helper."
+  }
+
   if (-not (Test-Path "node_modules")) {
     & $pnpm install --frozen-lockfile
   }

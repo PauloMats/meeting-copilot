@@ -25,8 +25,13 @@ export const IPC_CHANNELS = {
   transcriptDelta: "transcript:delta",
   transcriptFinal: "transcript:final",
   transcriptionError: "transcription:error",
-  listDesktopSources: "desktop-sources:list",
-  selectDesktopSource: "desktop-sources:select",
+  listAudioDevices: "audio-devices:list",
+  selectAudioDevice: "audio-devices:select",
+  nativeAudioStart: "native-audio:start",
+  nativeAudioStop: "native-audio:stop",
+  nativeAudioChunk: "native-audio:chunk",
+  nativeAudioLevels: "native-audio:levels",
+  nativeAudioError: "native-audio:error",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   settingsChanged: "settings:changed",
@@ -41,10 +46,21 @@ export const IPC_CHANNELS = {
   windowClose: "window:close"
 } as const;
 
-export interface DesktopSource {
+export interface AudioDevice {
   id: string;
   name: string;
-  thumbnailDataUrl: string;
+  isDefault: boolean;
+  isDefaultCommunications: boolean;
+}
+
+export interface AudioLevels {
+  system: number;
+  microphone: number | null;
+}
+
+export interface NativeAudioSession {
+  outputDevice: string;
+  microphoneDevice: string | null;
 }
 
 export interface TranscriptDelta {
@@ -73,9 +89,11 @@ export interface CopilotApi {
     cancel(): Promise<void>;
     sendAudioChunk(chunk: ArrayBuffer): void;
   };
-  desktopSources: {
-    list(): Promise<DesktopSource[]>;
+  systemAudio: {
+    listDevices(): Promise<AudioDevice[]>;
     select(id: string): Promise<void>;
+    start(includeMicrophone: boolean): Promise<NativeAudioSession>;
+    stop(): Promise<void>;
   };
   settings: {
     get(): Promise<AppSettings>;
@@ -104,5 +122,8 @@ export interface CopilotApi {
     onTranscriptDelta(listener: (event: TranscriptDelta) => void): () => void;
     onTranscriptFinal(listener: (event: TranscriptFinal) => void): () => void;
     onTranscriptionError(listener: (message: string) => void): () => void;
+    onNativeAudioChunk(listener: (chunk: ArrayBuffer) => void): () => void;
+    onNativeAudioLevels(listener: (levels: AudioLevels) => void): () => void;
+    onNativeAudioError(listener: (message: string) => void): () => void;
   };
 }

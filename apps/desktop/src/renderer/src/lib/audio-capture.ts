@@ -1,91 +1,72 @@
-const WORKLET_SOURCE = `
-class PcmCaptureProcessor extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    this.buffer = new Int16Array(0);
-    this.chunkSamples = 2400;
-  }
-  process(inputs) {
-    const input = inputs[0] && inputs[0][0];
-    if (!input) return true;
-    const ratio = sampleRate / 24000;
-    const outputLength = Math.floor(input.length / ratio);
-    const pcm = new Int16Array(outputLength);
-    for (let i = 0; i < outputLength; i++) {
-      const start = Math.floor(i * ratio);
-      const end = Math.min(Math.floor((i + 1) * ratio), input.length);
-      let sum = 0;
-      for (let j = start; j < end; j++) sum += input[j];
-      const sample = Math.max(-1, Math.min(1, sum / Math.max(1, end - start)));
-      pcm[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-    }
-    const merged = new Int16Array(this.buffer.length + pcm.length);
-    merged.set(this.buffer);
-    merged.set(pcm, this.buffer.length);
-    let offset = 0;
-    while (merged.length - offset >= this.chunkSamples) {
-      const chunk = merged.slice(offset, offset + this.chunkSamples);
-      this.port.postMessage(chunk.buffer, [chunk.buffer]);
-      offset += this.chunkSamples;
-    }
-    this.buffer = merged.slice(offset);
-    return true;
+import type { AudioLevels } from "@meeting-copilot/contracts";
+
+export type { AudioLevels } from "@meeting-copilot/contracts";
+
+export type AudioSourceKind = "system" | "microphone";
+
+export class AudioSourceStartError extends Error {
+  readonly code = "AUDIO_SOURCE_START_FAILED";
+
+  constructor(
+    readonly source: AudioSourceKind,
+    readonly originalMessage: string
+  ) {
+    super(originalMessage);
+    this.name = "AudioSourceStartError";
   }
 }
-registerProcessor("pcm-capture", PcmCaptureProcessor);
-`;
+
+export class SystemAudioUnavailableError extends Error {
+  readonly code = "SYSTEM_AUDIO_UNAVAILABLE";
+
+  constructor() {
+    super("No active Windows output device was found");
+    this.name = "SystemAudioUnavailableError";
+  }
+}
 
 export class AudioCapture {
-  private context: AudioContext | null = null;
-  private streams: MediaStream[] = [];
+  private active = false;
+  private disposers: Array<() => void> = [];
+  private levelListener: ((levels: AudioLevels) => void) | null = null;
 
-  async start(includeMicrophone: boolean, onChunk: (chunk: ArrayBuffer) => void): Promise<void> {
-    if (this.context) return;
-    const desktop = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: { channelCount: 1, sampleRate: 48000 }
-    });
-    this.streams.push(desktop);
+  async start(
+    includeMicrophone: boolean,
+    onChunk: (chunk: ArrayBuffer) => void,
+    onLevels?: (levels: AudioLevels) => void,
+    onError?: (message: string) => void
+  ): Promise<void> {
+    if (this.active) return;
 
-    if (includeMicrophone) {
-      const microphone = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-      this.streams.push(microphone);
+    this.levelListener = onLevels ?? null;
+    this.disposers = [
+      window.copilot.events.onNativeAudioChunk(onChunk),
+      window.copilot.events.onNativeAudioLevels((levels) => onLevels?.(levels)),
+      window.copilot.events.onNativeAudioError((message) => onError?.(message))
+    ];
+    onLevels?.({ system: 0, microphone: includeMicrophone ? 0 : null });
+
+    try {
+      await window.copilot.systemAudio.start(includeMicrophone);
+      this.active = true;
+    } catch (cause) {
+      this.disposeSubscriptions();
+      const message = cause instanceof Error ? cause.message : "Could not start WASAPI capture";
+      const source = /microphone/i.test(message) ? "microphone" : "system";
+      throw new AudioSourceStartError(source, message);
     }
-
-    const context = new AudioContext({ sampleRate: 48000, latencyHint: "interactive" });
-    const moduleUrl = URL.createObjectURL(new Blob([WORKLET_SOURCE], { type: "text/javascript" }));
-    await context.audioWorklet.addModule(moduleUrl);
-    URL.revokeObjectURL(moduleUrl);
-
-    const mix = context.createGain();
-    for (const stream of this.streams) {
-      if (stream.getAudioTracks().length > 0) {
-        context.createMediaStreamSource(stream).connect(mix);
-      }
-    }
-    const worklet = new AudioWorkletNode(context, "pcm-capture", {
-      numberOfInputs: 1,
-      numberOfOutputs: 0,
-      channelCount: 1
-    });
-    worklet.port.onmessage = (event: MessageEvent<ArrayBuffer>) => onChunk(event.data);
-    mix.connect(worklet);
-    this.context = context;
   }
 
   async stop(): Promise<void> {
-    for (const stream of this.streams) {
-      for (const track of stream.getTracks()) track.stop();
-    }
-    this.streams = [];
-    await this.context?.close();
-    this.context = null;
+    if (this.active) await window.copilot.systemAudio.stop();
+    this.active = false;
+    this.disposeSubscriptions();
+    this.levelListener?.({ system: 0, microphone: null });
+    this.levelListener = null;
+  }
+
+  private disposeSubscriptions(): void {
+    for (const dispose of this.disposers) dispose();
+    this.disposers = [];
   }
 }

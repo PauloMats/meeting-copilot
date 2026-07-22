@@ -31,8 +31,16 @@ export function useCopilot() {
     setError(null);
     try {
       await window.copilot.capture.start();
-      await capture.current.start(settings.includeMicrophone, (chunk) =>
-        window.copilot.capture.sendAudioChunk(chunk)
+      await capture.current.start(
+        settings.includeMicrophone,
+        (chunk) => window.copilot.capture.sendAudioChunk(chunk),
+        undefined,
+        (message) => {
+          setError(message);
+          setState("error");
+          void capture.current.stop();
+          void window.copilot.capture.cancel();
+        }
       );
     } catch (cause) {
       await capture.current.stop();

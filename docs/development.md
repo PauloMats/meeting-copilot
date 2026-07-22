@@ -39,7 +39,7 @@ For renderer/main-process UI development in WSL:
 pnpm dev:desktop
 ```
 
-WSLg can render Electron, but Windows system-audio loopback is an Electron-on-Windows capability.
+WSLg can render Electron, but the app's system-audio capture uses a bundled native WASAPI helper.
 For a real audio test, use a separate native Windows checkout so Linux and Windows native
 `node_modules` never overwrite each other:
 
@@ -52,6 +52,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-windows-de
 
 Keep the API running in WSL. Windows forwards `127.0.0.1:3333` to the WSL service, and Docker
 Desktop exposes PostgreSQL on `127.0.0.1:5432`.
+
+The PowerShell development and release scripts build `MeetingCopilot.AudioCapture.exe` before
+starting or packaging Electron. They install a private .NET 8 SDK under
+`%LOCALAPPDATA%\meeting-copilot\toolchain\dotnet` when no SDK is available. The published helper is
+self-contained and is bundled as an Electron extra resource, so the installed app has no .NET
+runtime prerequisite. In the app, select the same Windows output endpoint used by the meeting
+application (for example, `JBL Quantum 360 Wireless Game` or `Chat`).
 
 ## Database
 

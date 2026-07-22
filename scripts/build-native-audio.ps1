@@ -64,6 +64,7 @@ New-Item -ItemType Directory -Force -Path $output | Out-Null
 Invoke-NativeCommand $dotnetPath @(
   "publish",
   $project,
+  "--disable-build-servers",
   "--configuration", $Configuration,
   "--runtime", "win-x64",
   "--self-contained", "true",

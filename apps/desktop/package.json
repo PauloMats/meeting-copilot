@@ -1,13 +1,13 @@
 {
   "name": "@meeting-copilot/desktop",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Privacy-first AI meeting copilot and smart meeting notes desktop app",
   "author": "Paulo Mats",
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
-    "build": "electron-vite build",
+    "build": "electron-vite build && node ../../scripts/verify-desktop-bundle.mjs",
     "dev": "electron-vite dev",
     "preview": "electron-vite preview",
     "pack:win": "electron-vite build && electron-builder --win --dir",

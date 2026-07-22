@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ["@meeting-copilot/contracts"] })],
     build: {
       rollupOptions: {
         input: resolve("src/main/index.ts")

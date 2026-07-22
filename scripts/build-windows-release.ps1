@@ -5,6 +5,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Some launchers provide a reduced PATHEXT, which prevents package scripts from
+# resolving Windows command shims such as turbo.cmd, eslint.cmd and vitest.cmd.
+$requiredPathExtensions = @(".COM", ".EXE", ".BAT", ".CMD")
+$pathExtensions = @($env:PATHEXT -split ";" | Where-Object { $_ })
+foreach ($extension in $requiredPathExtensions) {
+  if ($pathExtensions -notcontains $extension) {
+    $pathExtensions += $extension
+  }
+}
+$env:PATHEXT = $pathExtensions -join ";"
+
 function Invoke-NativeCommand {
   param(
     [Parameter(Mandatory = $true)]
@@ -120,8 +131,15 @@ try {
     "--config.node-linker=hoisted"
   )
   if (-not $SkipChecks) {
-    foreach ($check in @("lint", "typecheck", "test", "build")) {
-      Invoke-NativeCommand $nodePath @($pnpmScript, $check)
+    # Build shared workspace packages before type-aware linting, matching the
+    # dependency ordering that Turbo applies in the regular CI pipeline.
+    foreach ($check in @("build", "lint", "typecheck", "test")) {
+      Invoke-NativeCommand $nodePath @(
+        $pnpmScript,
+        "--recursive",
+        "--if-present",
+        $check
+      )
     }
   }
 
@@ -135,8 +153,14 @@ try {
   Push-Location $desktopDirectory
   try {
     Invoke-NativeCommand $nodePath @($electronViteCli, "build")
+    Invoke-NativeCommand $nodePath @(
+      (Join-Path $repositoryRoot "scripts\verify-desktop-bundle.mjs")
+    )
     Invoke-NativeCommand $nodePath @($electronBuilderCli, "--win", "portable", "--x64")
     Invoke-NativeCommand $nodePath @($electronViteCli, "build")
+    Invoke-NativeCommand $nodePath @(
+      (Join-Path $repositoryRoot "scripts\verify-desktop-bundle.mjs")
+    )
     Invoke-NativeCommand $nodePath @($electronBuilderCli, "--win", "nsis", "--x64")
   }
   finally {

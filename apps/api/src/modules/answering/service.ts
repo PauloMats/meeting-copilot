@@ -118,7 +118,7 @@ type AnswerOptions = {
 };
 
 type AnswerPreset = AnswerOptions & {
-  reasoningEffort: "minimal" | "low" | "medium";
+  reasoningEffort: "low" | "medium";
   memoryTurns: number;
 };
 
@@ -145,7 +145,7 @@ function getPreset(level: IntelligenceLevel, base: AnswerOptions): AnswerPreset 
     maxOutputTokens: base.maxOutputTokens,
     contextChars: base.contextChars,
     retrievalLimit: base.retrievalLimit,
-    reasoningEffort: "minimal",
+    reasoningEffort: "low",
     memoryTurns: 3
   };
 }

@@ -79,6 +79,6 @@ function getSummaryPreset(level: IntelligenceLevel, baseMaxOutputTokens: number)
   return {
     maxOutputTokens: Math.max(baseMaxOutputTokens, 1100),
     maxTranscriptChars: 60_000,
-    reasoningEffort: "minimal" as const
+    reasoningEffort: "low" as const
   };
 }

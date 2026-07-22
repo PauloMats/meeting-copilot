@@ -1,38 +1,36 @@
-import type { DesktopSource } from "@meeting-copilot/contracts";
+import type { AudioDevice } from "@meeting-copilot/contracts";
 import { useEffect, useState } from "react";
 
 interface SourcePickerProps {
   label: string;
   disabled?: boolean;
   requireExplicitSelection?: boolean;
-  showPreview?: boolean;
   emptyLabel?: string;
   unavailableLabel?: string;
-  onSelectionChange?: (source: DesktopSource | null) => void;
+  onSelectionChange?: (source: AudioDevice | null) => void;
 }
 
 export function SourcePicker({
   label,
   disabled = false,
   requireExplicitSelection = false,
-  showPreview = false,
-  emptyLabel = "Select a screen or window",
-  unavailableLabel = "No screens or windows found",
+  emptyLabel = "Select a Windows output device",
+  unavailableLabel = "No audio output devices found",
   onSelectionChange
 }: SourcePickerProps) {
-  const [sources, setSources] = useState<DesktopSource[]>([]);
+  const [sources, setSources] = useState<AudioDevice[]>([]);
   const [selected, setSelected] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     onSelectionChange?.(null);
-    void window.copilot.desktopSources
-      .list()
+    void window.copilot.systemAudio
+      .listDevices()
       .then(async (items) => {
         setSources(items);
         if (!requireExplicitSelection && items[0]) {
-          await window.copilot.desktopSources.select(items[0].id);
+          await window.copilot.systemAudio.select(items[0].id);
           setSelected(items[0].id);
           onSelectionChange?.(items[0]);
         }
@@ -54,7 +52,7 @@ export function SourcePicker({
     const source = sources.find((item) => item.id === id);
     if (!source) return;
     try {
-      await window.copilot.desktopSources.select(id);
+      await window.copilot.systemAudio.select(id);
       setSelected(id);
       onSelectionChange?.(source);
     } catch (cause) {
@@ -64,10 +62,8 @@ export function SourcePicker({
     }
   };
 
-  const selectedSource = sources.find((source) => source.id === selected) ?? null;
-
   return (
-    <div className={`source-picker ${showPreview ? "source-picker-with-preview" : ""}`}>
+    <div className="source-picker">
       <label className="field">
         {label}
         <select
@@ -84,12 +80,6 @@ export function SourcePicker({
           ))}
         </select>
       </label>
-      {showPreview && selectedSource && (
-        <div className="source-preview">
-          <img src={selectedSource.thumbnailDataUrl} alt="" />
-          <span>{selectedSource.name}</span>
-        </div>
-      )}
       {error && (
         <span className="source-picker-error" role="alert">
           {error}

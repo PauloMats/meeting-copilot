@@ -1,4 +1,4 @@
-import type { DesktopSource } from "@meeting-copilot/contracts";
+import type { AudioDevice } from "@meeting-copilot/contracts";
 import { useState } from "react";
 import { SourcePicker } from "./SourcePicker";
 import { StateIndicator } from "./StateIndicator";
@@ -9,7 +9,7 @@ import { WindowTitleBar } from "./WindowTitleBar";
 
 export function MeetingNotes({ onBack }: { onBack: () => void }) {
   const notes = useMeetingNotes();
-  const [selectedSource, setSelectedSource] = useState<DesktopSource | null>(null);
+  const [selectedSource, setSelectedSource] = useState<AudioDevice | null>(null);
   const pt = notes.settings.language === "pt";
   const isBusy =
     notes.state === "thinking" || (!notes.isRecording && notes.state === "transcribing");
@@ -57,12 +57,11 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
 
       <section className="control-panel notes-controls">
         <SourcePicker
-          label={pt ? "Tela ou janela" : "Screen or window"}
+          label={pt ? "Saída de áudio do Windows" : "Windows audio output"}
           disabled={notes.isRecording || isBusy}
           requireExplicitSelection
-          showPreview
-          emptyLabel={pt ? "Selecione uma fonte…" : "Select a source…"}
-          unavailableLabel={pt ? "Nenhuma fonte encontrada" : "No source found"}
+          emptyLabel={pt ? "Selecione o dispositivo…" : "Select the output device…"}
+          unavailableLabel={pt ? "Nenhuma saída de áudio encontrada" : "No audio output found"}
           onSelectionChange={setSelectedSource}
         />
         <label className="field">
@@ -111,8 +110,8 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
       {!selectedSource && (
         <p className="source-selection-hint">
           {pt
-            ? "Selecione explicitamente a tela ou janela da reunião antes de gravar."
-            : "Explicitly select the meeting screen or window before recording."}
+            ? "Selecione a mesma saída usada pelo Teams, Discord ou navegador — por exemplo, JBL Quantum Game ou Chat."
+            : "Select the same output used by Teams, Discord, or your browser — for example, JBL Quantum Game or Chat."}
         </p>
       )}
 
@@ -124,8 +123,8 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
               {selectedSource
                 ? selectedSource.name
                 : pt
-                  ? "Fonte ainda não selecionada"
-                  : "No source selected yet"}
+                  ? "Saída ainda não selecionada"
+                  : "No output selected yet"}
             </strong>
           </div>
           <small>

@@ -123,7 +123,13 @@ export function useMeetingNotes() {
       await capture.current.start(
         settings.includeMicrophone,
         (chunk) => window.copilot.capture.sendAudioChunk(chunk),
-        setAudioLevels
+        setAudioLevels,
+        (message) => {
+          setIsRecording(false);
+          setError(message);
+          void capture.current.stop();
+          void window.copilot.capture.stop();
+        }
       );
     } catch (cause) {
       await capture.current.stop();
@@ -137,8 +143,8 @@ export function useMeetingNotes() {
             : "No system audio track was found. Select another screen or window and confirm that audio is playing through the default Windows output device."
           : cause instanceof AudioSourceStartError && cause.source === "system"
             ? settings.language === "pt"
-              ? `O Windows não conseguiu iniciar o áudio do PC. Se estiver usando um headset USB (como JBL Quantum), feche o software do headset ou teste outra saída de áudio. Detalhe: ${cause.originalMessage}`
-              : `Windows could not start system audio. If you use a USB headset (such as JBL Quantum), close its companion software or test another audio output. Detail: ${cause.originalMessage}`
+              ? `O WASAPI não conseguiu iniciar a saída selecionada. Confirme se ela é a mesma usada pela reunião (por exemplo, JBL Quantum Game ou Chat). Detalhe: ${cause.originalMessage}`
+              : `WASAPI could not start the selected output. Confirm it is the same device used by the meeting (for example, JBL Quantum Game or Chat). Detail: ${cause.originalMessage}`
             : cause instanceof AudioSourceStartError
               ? settings.language === "pt"
                 ? `O Windows não conseguiu iniciar o microfone. Verifique a permissão ou desative “Incluir microfone” para gravar apenas o áudio do PC. Detalhe: ${cause.originalMessage}`

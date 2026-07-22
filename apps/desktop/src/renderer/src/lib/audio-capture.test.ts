@@ -1,25 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { AudioSourceStartError, calculateAudioLevel } from "./audio-capture";
+import { AudioSourceStartError, SystemAudioUnavailableError } from "./audio-capture";
 
-describe("calculateAudioLevel", () => {
-  it("returns zero for silence and very low noise", () => {
-    expect(calculateAudioLevel(new Float32Array(32))).toBe(0);
-    expect(calculateAudioLevel(new Float32Array(32).fill(0.0005))).toBe(0);
-  });
-
-  it("maps audible samples onto the normalized meter range", () => {
-    const level = calculateAudioLevel(new Float32Array(32).fill(0.1));
-    expect(level).toBeCloseTo(2 / 3, 4);
-  });
-
-  it("clamps full-scale audio to one", () => {
-    expect(calculateAudioLevel(new Float32Array(32).fill(1))).toBe(1);
-  });
-
+describe("native audio errors", () => {
   it("identifies which Windows audio source failed", () => {
     const error = new AudioSourceStartError("system", "Could not start audio source");
     expect(error.code).toBe("AUDIO_SOURCE_START_FAILED");
     expect(error.source).toBe("system");
     expect(error.message).toBe("Could not start audio source");
+  });
+
+  it("reports when Windows has no active output endpoint", () => {
+    const error = new SystemAudioUnavailableError();
+    expect(error.code).toBe("SYSTEM_AUDIO_UNAVAILABLE");
+    expect(error.message).toContain("Windows output device");
   });
 });

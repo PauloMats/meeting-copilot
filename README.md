@@ -8,7 +8,7 @@ decisions, action items, owners, deadlines, next steps, and open questions.
 
 - Electron + React + TypeScript with `contextIsolation`, sandbox, CSP, and a typed preload bridge.
 - Global push-to-talk keydown/keyup capture (default: `Space`).
-- Windows desktop loopback audio and optional microphone mixing.
+- Native Windows WASAPI loopback with explicit output-device selection and optional microphone mixing.
 - 24 kHz mono PCM streaming to an OpenAI Realtime transcription session.
 - Manual audio commit and transcript correlation by provider `item_id`.
 - Auto-submit on hotkey release or optional transcript review with Enter/Escape.
@@ -34,6 +34,8 @@ apps/
 packages/
   contracts/           Zod DTOs, domain types, IPC and API contracts
   database/            Drizzle schema, migrations and PostgreSQL client
+native/
+  windows-audio-capture/  Self-contained WASAPI capture helper (C# + NAudio)
 docs/
   architecture.md      Flows, boundaries and service map
   development.md       Windows + WSL2 setup
@@ -69,8 +71,8 @@ For the first real audio test, run Electron from a native Windows checkout:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-windows-desktop.ps1
 ```
 
-Electron launched inside WSL uses Linux capture semantics. The Windows checkout is required for
-desktop audio loopback; the API and PostgreSQL can remain in WSL/Docker Desktop. See
+Electron launched inside WSL cannot use the native Windows WASAPI helper. The Windows checkout is
+required for system-audio capture; the API and PostgreSQL can remain in WSL/Docker Desktop. See
 [docs/development.md](docs/development.md).
 
 ## Windows executable
@@ -83,11 +85,11 @@ pnpm install
 .\scripts\build-windows-release.ps1
 ```
 
-The script generates both the portable executable and NSIS installer, validates the project, and
-copies both artifacts to `Documents\Meeting Copilot\Builds`. The original artifacts remain under
-`apps\desktop\release\`. The current packaged desktop app
-still expects the backend API at `http://127.0.0.1:3333`, so keep the WSL API/PostgreSQL running for
-now:
+The script installs a local .NET 8 build toolchain when needed, publishes the self-contained WASAPI
+helper, generates both the portable executable and NSIS installer, validates the project, and
+copies both artifacts to `Documents\Meeting Copilot\Builds`. End users do not need .NET installed.
+The original artifacts remain under `apps\desktop\release\`. Set `API_BASE_URL` and
+`DESKTOP_API_KEY` for the Railway backend, or keep the local WSL API/PostgreSQL running:
 
 ```bash
 cd /home/paulomats/code/pessoal/meeting-copilot

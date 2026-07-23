@@ -49,9 +49,64 @@ describe("basic reasoning effort", () => {
     expect(parse).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "gpt-5.4-nano",
+        max_output_tokens: 2000,
         reasoning: { effort: "low" }
       })
     );
+  });
+
+  it("retries a truncated meeting summary once with compact instructions", async () => {
+    const parse = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new SyntaxError("Unterminated string in JSON at position 4899")
+      )
+      .mockResolvedValueOnce({ output_parsed: summary });
+    const service = new MeetingSummaryService(
+      { responses: { parse } } as unknown as OpenAI,
+      { basic: "gpt-5.4-nano", balanced: "gpt-5.4-mini", advanced: "gpt-5.4" },
+      520
+    );
+
+    await service.generate({
+      transcript: "A longer meeting transcript that needs a compact retry.",
+      intelligenceLevel: "basic",
+      language: "en"
+    });
+
+    expect(parse).toHaveBeenCalledTimes(2);
+    expect(parse.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        max_output_tokens: 2000,
+        input: expect.arrayContaining([
+          expect.objectContaining({
+            role: "system",
+            content: expect.stringContaining(
+              "A previous structured response was truncated"
+            )
+          })
+        ])
+      })
+    );
+  });
+
+  it("does not retry unrelated meeting summary failures", async () => {
+    const providerError = new Error("Provider unavailable");
+    const parse = vi.fn().mockRejectedValue(providerError);
+    const service = new MeetingSummaryService(
+      { responses: { parse } } as unknown as OpenAI,
+      { basic: "gpt-5.4-nano", balanced: "gpt-5.4-mini", advanced: "gpt-5.4" },
+      520
+    );
+
+    await expect(
+      service.generate({
+        transcript: "A meeting transcript.",
+        intelligenceLevel: "basic",
+        language: "en"
+      })
+    ).rejects.toBe(providerError);
+    expect(parse).toHaveBeenCalledTimes(1);
   });
 
   it("uses low when generating a copilot answer", async () => {

@@ -3,9 +3,12 @@ import {
   AnswerSchema,
   AppSettingsSchema,
   ContextProfileSchema,
+  DailySummarySchema,
   GlossaryTermSchema,
   IntelligenceLevelSchema,
-  MeetingSummarySchema
+  MeetingContextSchema,
+  MeetingSummarySchema,
+  MeetingTypeSchema
 } from "./domain.js";
 
 export const RealtimeTokenRequestSchema = z.object({
@@ -50,14 +53,18 @@ export const AnswerResponseSchema = z.object({
   )
 });
 
-export const MeetingSummaryRequestSchema = z.object({
-  transcript: z.string().min(1).max(200_000),
-  intelligenceLevel: IntelligenceLevelSchema.default("balanced"),
-  language: z.string().min(2).max(10)
-});
+export const MeetingSummaryRequestSchema = z
+  .object({
+    transcript: z.string().min(1).max(200_000),
+    intelligenceLevel: IntelligenceLevelSchema.default("balanced"),
+    language: z.string().min(2).max(10),
+    meetingType: MeetingTypeSchema.default("general_meeting")
+  })
+  .merge(MeetingContextSchema);
 
 export const MeetingSummaryResponseSchema = z.object({
-  summary: MeetingSummarySchema,
+  summary: z.union([MeetingSummarySchema, DailySummarySchema]),
+  meetingType: MeetingTypeSchema,
   model: z.string(),
   intelligenceLevel: IntelligenceLevelSchema
 });

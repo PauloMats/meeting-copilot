@@ -1,12 +1,28 @@
 import type {
+  DailySummary,
   LoadedMeetingNote,
+  MeetingContext,
+  MeetingResult,
   MeetingSummary,
+  MeetingType,
   SaveMeetingNoteRequest,
   SavedMeetingNoteEntry,
   SavedMeetingNote
 } from "@meeting-copilot/contracts";
+import {
+  DailySummarySchema,
+  MeetingContextSchema,
+  MeetingSummarySchema,
+  MeetingTypeSchema
+} from "@meeting-copilot/contracts";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
+
+const NoteMetadataSchema = MeetingContextSchema.extend({
+  meetingType: MeetingTypeSchema.default("general_meeting")
+});
+
+type NoteMetadata = MeetingContext & { meetingType: MeetingType };
 
 export class MeetingNotesService {
   private readonly notesDirectory: string;
@@ -83,15 +99,36 @@ function filenameFor(startedAt: string): string {
 function renderMeetingNote(request: SaveMeetingNoteRequest): string {
   const { summary } = request;
   const portuguese = request.language === "pt";
+  const defaultTitle =
+    request.meetingType === "daily"
+      ? request.meetingName || (portuguese ? "Relatório da Daily" : "Daily status report")
+      : portuguese
+        ? "Ata da reunião"
+        : "Meeting notes";
   const sections = [
-    `# ${summary?.title.trim() || (portuguese ? "Ata da reunião" : "Meeting notes")}`,
+    `# ${summary?.title.trim() || defaultTitle}`,
+    "",
+    renderMetadata(request),
     "",
     `- ${portuguese ? "Início" : "Started"}: ${request.startedAt}`,
     `- ${portuguese ? "Fim" : "Ended"}: ${request.endedAt}`,
     `- ${portuguese ? "Idioma" : "Language"}: ${request.language}`,
+    `- ${portuguese ? "Tipo" : "Type"}: ${
+      request.meetingType === "daily"
+        ? "Daily / Status"
+        : portuguese
+          ? "Reunião geral"
+          : "General meeting"
+    }`,
+    ...(request.meetingName
+      ? [`- ${portuguese ? "Reunião" : "Meeting"}: ${request.meetingName}`]
+      : []),
+    ...(request.meetingDate
+      ? [`- ${portuguese ? "Data da reunião" : "Meeting date"}: ${request.meetingDate}`]
+      : []),
     "",
     summary
-      ? renderSummary(summary, portuguese)
+      ? renderResult(summary, request.meetingType, portuguese)
       : portuguese
         ? "_O resumo da IA ainda está sendo gerado._"
         : "_AI summary is still being generated._",
@@ -104,11 +141,24 @@ function renderMeetingNote(request: SaveMeetingNoteRequest): string {
   return sections.join("\n");
 }
 
+function renderMetadata(request: SaveMeetingNoteRequest): string {
+  return `<!-- meeting-copilot-metadata: ${JSON.stringify({
+    version: 2,
+    meetingType: request.meetingType,
+    meetingName: request.meetingName,
+    meetingDate: request.meetingDate,
+    orderedParticipants: request.orderedParticipants,
+    speakerHints: request.speakerHints
+  })} -->`;
+}
+
 function toSavedMeetingNoteEntry(note: LoadedMeetingNote): SavedMeetingNoteEntry {
   return {
     filePath: note.filePath,
     title: note.title,
     transcriptPreview: note.transcriptPreview,
+    meetingType: note.meetingType,
+    meetingName: note.meetingName,
     language: note.language,
     startedAt: note.startedAt,
     endedAt: note.endedAt,
@@ -137,17 +187,33 @@ function parseMeetingNote(
 
   const explicitLanguage = /^- (?:Idioma|Language):\s*(\S+)\s*$/m.exec(content)?.[1];
   const language = explicitLanguage ?? (/^## Transcrição\s*$/m.test(content) ? "pt" : "en");
+  const metadata = parseMetadata(content);
   return {
     filePath,
     title,
     transcript,
     transcriptPreview: transcript.replace(/\s+/g, " ").slice(0, 180),
+    meetingType: metadata.meetingType,
+    meetingName: metadata.meetingName,
+    meetingDate: metadata.meetingDate,
+    orderedParticipants: metadata.orderedParticipants,
+    speakerHints: metadata.speakerHints,
     language,
     startedAt,
     endedAt,
     modifiedAt,
     hasSummary: /^## (?:Visão geral|Overview)\s*$/m.test(content)
   };
+}
+
+function parseMetadata(content: string): NoteMetadata {
+  const raw = /^<!-- meeting-copilot-metadata:\s*(\{.+\})\s*-->$/m.exec(content)?.[1];
+  if (!raw) return NoteMetadataSchema.parse({});
+  try {
+    return NoteMetadataSchema.parse(JSON.parse(raw));
+  } catch {
+    return NoteMetadataSchema.parse({});
+  }
 }
 
 function matchRequired(content: string, pattern: RegExp, field: string): string {
@@ -163,6 +229,16 @@ function isMissingDirectoryError(cause: unknown): boolean {
     "code" in cause &&
     (cause as { code?: string }).code === "ENOENT"
   );
+}
+
+function renderResult(
+  result: MeetingResult,
+  meetingType: SaveMeetingNoteRequest["meetingType"],
+  portuguese: boolean
+): string {
+  return meetingType === "daily"
+    ? renderDailySummary(DailySummarySchema.parse(result), portuguese)
+    : renderSummary(MeetingSummarySchema.parse(result), portuguese);
 }
 
 function renderSummary(summary: MeetingSummary, portuguese: boolean): string {
@@ -216,7 +292,94 @@ function renderSummary(summary: MeetingSummary, portuguese: boolean): string {
   return sections.join("\n");
 }
 
-function appendList(sections: string[], title: string, items: string[]): void {
+function renderDailySummary(summary: DailySummary, portuguese: boolean): string {
+  const sections: string[] = [
+    portuguese ? "## Visão geral" : "## Overview",
+    "",
+    summary.overview.trim()
+  ];
+
+  if (summary.participant_updates.length) {
+    sections.push(
+      "",
+      portuguese ? "## Atualizações por participante" : "## Participant updates",
+      ""
+    );
+    for (const update of summary.participant_updates) {
+      sections.push(
+        `### ${update.participant || (portuguese ? "Participante não identificado" : "Unidentified participant")}`,
+        "",
+        `_${portuguese ? "Confiança da atribuição" : "Attribution confidence"}: ${confidenceLabel(update.attribution_confidence, portuguese)}_`,
+        "",
+        update.summary.trim()
+      );
+      appendList(sections, portuguese ? "Concluído" : "Completed", update.completed, 4);
+      appendList(sections, portuguese ? "Em andamento" : "In progress", update.in_progress, 4);
+      appendList(sections, portuguese ? "Bloqueios" : "Blockers", update.blockers, 4);
+      appendDependencies(sections, update.dependencies, portuguese);
+      appendList(sections, portuguese ? "Próximos passos" : "Next steps", update.next_steps, 4);
+      sections.push("");
+    }
+    sections.pop();
+  }
+
+  appendList(sections, portuguese ? "Bloqueios do time" : "Team blockers", summary.team_blockers);
+  appendList(
+    sections,
+    portuguese ? "Próximos passos do time" : "Team next steps",
+    summary.team_next_steps
+  );
+  appendList(
+    sections,
+    portuguese ? "Participantes ausentes" : "Absent participants",
+    summary.absent_participants
+  );
+
+  if (summary.unresolved_attributions.length) {
+    sections.push(
+      "",
+      portuguese ? "## Atribuições não resolvidas" : "## Unresolved attributions",
+      ""
+    );
+    for (const item of summary.unresolved_attributions) {
+      const possible = item.possible_participants.length
+        ? ` (${portuguese ? "possíveis" : "possible"}: ${item.possible_participants.join(", ")})`
+        : "";
+      sections.push(`- ${item.summary}${possible}`);
+    }
+  }
+
+  return sections.join("\n");
+}
+
+function appendDependencies(
+  sections: string[],
+  dependencies: DailySummary["participant_updates"][number]["dependencies"],
+  portuguese: boolean
+): void {
+  if (!dependencies.length) return;
+  sections.push("", `#### ${portuguese ? "Dependências" : "Dependencies"}`, "");
+  for (const item of dependencies) {
+    sections.push(
+      `- **${portuguese ? "Aguardando" : "Waiting for"}: ${item.person_or_team || (portuguese ? "não informado" : "not specified")}** — ${item.dependency}`
+    );
+  }
+}
+
+function confidenceLabel(
+  confidence: DailySummary["participant_updates"][number]["attribution_confidence"],
+  portuguese: boolean
+): string {
+  if (!portuguese) return confidence;
+  return { high: "alta", medium: "média", low: "baixa" }[confidence];
+}
+
+function appendList(sections: string[], title: string, items: string[], headingLevel = 2): void {
   if (!items.length) return;
-  sections.push("", `## ${title}`, "", ...items.map((item) => `- ${item}`));
+  sections.push(
+    "",
+    `${"#".repeat(headingLevel)} ${title}`,
+    "",
+    ...items.map((item) => `- ${item}`)
+  );
 }

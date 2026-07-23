@@ -18,9 +18,13 @@ decisions, action items, owners, deadlines, next steps, and open questions.
 - Optional always-on-top compact behavior.
 - Home screen for choosing between Meeting Copilot and Smart Meeting Notes.
 - Click-to-start/click-to-finish meeting transcription with an elapsed-time indicator.
-- A dedicated structured AI summarization prompt that does not invent owners or deadlines.
+- Explicit General Meeting or Daily / Team Status processing before recording.
+- A person-by-person Daily report with attribution confidence, blockers, dependencies, and next steps.
+- Optional ordered participants and speaker hints to improve Daily attribution.
+- Dedicated structured AI prompts that do not invent owners, deadlines, decisions, or updates.
 - Automatic Markdown notes under the user's `Documents/Meeting Copilot` directory.
 - Transcript-first persistence: the raw transcript remains saved if AI summarization fails.
+- Saved transcripts retain their meeting type and attribution context for safe retry.
 
 The document ingestion endpoint currently accepts and validates uploads but deliberately does not
 claim indexing is complete. A storage/indexing worker is listed in the delivery checklist.

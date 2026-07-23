@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { AnswerSchema, DEFAULT_SETTINGS, MeetingSummarySchema } from "./domain.js";
+import {
+  AnswerSchema,
+  DailySummarySchema,
+  DEFAULT_SETTINGS,
+  MeetingSummarySchema
+} from "./domain.js";
 
 describe("contracts", () => {
   it("uses privacy-first defaults", () => {
@@ -31,5 +36,35 @@ describe("contracts", () => {
     });
 
     expect(summary.action_items[0]?.owner).toBe("Ana");
+  });
+
+  it("validates person-by-person daily status reports", () => {
+    const daily = DailySummarySchema.parse({
+      title: "Daily Dourado — 23/07/2026",
+      overview: "The team reported progress and one dependency.",
+      participant_updates: [
+        {
+          participant: "Igor",
+          attribution_confidence: "high",
+          summary: "Igor is waiting for a representatives route.",
+          completed: [],
+          in_progress: ["Resolve a dashboard issue."],
+          blockers: ["The representatives route is unavailable."],
+          dependencies: [
+            {
+              person_or_team: "Victor",
+              dependency: "Provide the representatives route."
+            }
+          ],
+          next_steps: ["Finish the task after the route is available."]
+        }
+      ],
+      team_blockers: [],
+      team_next_steps: [],
+      absent_participants: ["Lúcio"],
+      unresolved_attributions: []
+    });
+
+    expect(daily.participant_updates[0]?.dependencies[0]?.person_or_team).toBe("Victor");
   });
 });

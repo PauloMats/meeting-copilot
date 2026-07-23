@@ -8,7 +8,9 @@ import type {
 } from "./api.js";
 import { z } from "zod";
 import {
-  MeetingSummarySchema,
+  MeetingContextSchema,
+  MeetingResultSchema,
+  MeetingTypeSchema,
   type AppSettings,
   type CaptureState,
   type LoadedMeetingNote,
@@ -80,7 +82,9 @@ export interface TranscriptFinal {
 
 export const SaveMeetingNoteRequestSchema = z.object({
   transcript: z.string().min(1).max(200_000),
-  summary: MeetingSummarySchema.nullable(),
+  summary: MeetingResultSchema.nullable(),
+  meetingType: MeetingTypeSchema.default("general_meeting"),
+  ...MeetingContextSchema.shape,
   language: z.string().min(2).max(10),
   startedAt: z.string().datetime(),
   endedAt: z.string().datetime()

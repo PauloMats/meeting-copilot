@@ -2,7 +2,9 @@ import {
   DEFAULT_SETTINGS,
   type AppSettings,
   type CaptureState,
-  type MeetingSummary,
+  type MeetingContext,
+  type MeetingResult,
+  type MeetingType,
   type SavedMeetingNoteEntry
 } from "@meeting-copilot/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,12 +16,24 @@ import {
 } from "../lib/audio-capture";
 
 const EMPTY_AUDIO_LEVELS: AudioLevels = { system: 0, microphone: null };
+const EMPTY_MEETING_SETUP: MeetingRecordingSetup = {
+  meetingType: "general_meeting",
+  meetingName: "",
+  meetingDate: "",
+  orderedParticipants: [],
+  speakerHints: []
+};
+
+export type MeetingRecordingSetup = MeetingContext & {
+  meetingType: MeetingType;
+};
 
 export function useMeetingNotes() {
   const [state, setState] = useState<CaptureState>("idle");
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [transcript, setTranscript] = useState("");
-  const [summary, setSummary] = useState<MeetingSummary | null>(null);
+  const [summary, setSummary] = useState<MeetingResult | null>(null);
+  const [summaryMeetingType, setSummaryMeetingType] = useState<MeetingType>("general_meeting");
   const [error, setError] = useState<string | null>(null);
   const [savedPath, setSavedPath] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -36,6 +50,7 @@ export function useMeetingNotes() {
   const transcriptFrame = useRef<number | null>(null);
   const finalizationStarted = useRef(false);
   const finalizationTimer = useRef<number | null>(null);
+  const meetingSetupRef = useRef<MeetingRecordingSetup>(EMPTY_MEETING_SETUP);
 
   const refreshSavedNotes = useCallback(async () => {
     setIsLoadingSavedNotes(true);
@@ -76,12 +91,14 @@ export function useMeetingNotes() {
       }
 
       const endedAt = new Date().toISOString();
+      const meetingSetup = meetingSetupRef.current;
       setState("thinking");
       let draftSaved = false;
       try {
         const saved = await window.copilot.meetingNotes.save({
           transcript: trimmed,
           summary: null,
+          ...meetingSetup,
           language: settings.language,
           startedAt: recordingStartedAt,
           endedAt
@@ -97,12 +114,15 @@ export function useMeetingNotes() {
         const response = await window.copilot.backend.generateMeetingSummary({
           transcript: trimmed,
           intelligenceLevel: settings.intelligenceLevel,
-          language: settings.language
+          language: settings.language,
+          ...meetingSetup
         });
         setSummary(response.summary);
+        setSummaryMeetingType(response.meetingType);
         const saved = await window.copilot.meetingNotes.save({
           transcript: trimmed,
           summary: response.summary,
+          ...meetingSetup,
           language: settings.language,
           startedAt: recordingStartedAt,
           endedAt
@@ -120,49 +140,54 @@ export function useMeetingNotes() {
     [refreshSavedNotes, settings.intelligenceLevel, settings.language]
   );
 
-  const startRecording = useCallback(async () => {
-    if (startInFlight.current || isRecording || state === "thinking") return;
-    startInFlight.current = true;
-    setState("transcribing");
-    setIsRecording(true);
-    setIsPaused(false);
-    setElapsedSeconds(0);
-    setTranscript("");
-    transcriptRef.current = "";
-    setSummary(null);
-    setSavedPath(null);
-    setError(null);
-    setAudioLevels({
-      system: 0,
-      microphone: settings.includeMicrophone ? 0 : null
-    });
-    finalizationStarted.current = false;
-    startedAt.current = new Date().toISOString();
-    try {
-      await window.copilot.capture.start();
-      await capture.current.start(
-        settings.includeMicrophone,
-        (chunk) => window.copilot.capture.sendAudioChunk(chunk),
-        setAudioLevels,
-        (message) => {
-          setIsRecording(false);
-          setIsPaused(false);
-          setError(message);
-          void capture.current.stop();
-          void window.copilot.capture.stop();
-        }
-      );
-    } catch (cause) {
-      await capture.current.stop();
-      await window.copilot.capture.cancel();
-      setIsRecording(false);
+  const startRecording = useCallback(
+    async (meetingSetup: MeetingRecordingSetup) => {
+      if (startInFlight.current || isRecording || state === "thinking") return;
+      startInFlight.current = true;
+      setState("transcribing");
+      setIsRecording(true);
       setIsPaused(false);
-      setState("error");
-      setError(audioStartErrorMessage(cause, settings.language));
-    } finally {
-      startInFlight.current = false;
-    }
-  }, [isRecording, settings.includeMicrophone, settings.language, state]);
+      setElapsedSeconds(0);
+      setTranscript("");
+      transcriptRef.current = "";
+      setSummary(null);
+      setSummaryMeetingType(meetingSetup.meetingType);
+      setSavedPath(null);
+      setError(null);
+      setAudioLevels({
+        system: 0,
+        microphone: settings.includeMicrophone ? 0 : null
+      });
+      finalizationStarted.current = false;
+      startedAt.current = new Date().toISOString();
+      meetingSetupRef.current = meetingSetup;
+      try {
+        await window.copilot.capture.start();
+        await capture.current.start(
+          settings.includeMicrophone,
+          (chunk) => window.copilot.capture.sendAudioChunk(chunk),
+          setAudioLevels,
+          (message) => {
+            setIsRecording(false);
+            setIsPaused(false);
+            setError(message);
+            void capture.current.stop();
+            void window.copilot.capture.stop();
+          }
+        );
+      } catch (cause) {
+        await capture.current.stop();
+        await window.copilot.capture.cancel();
+        setIsRecording(false);
+        setIsPaused(false);
+        setState("error");
+        setError(audioStartErrorMessage(cause, settings.language));
+      } finally {
+        startInFlight.current = false;
+      }
+    },
+    [isRecording, settings.includeMicrophone, settings.language, state]
+  );
 
   const stopRecording = useCallback(async () => {
     if (!isRecording) return;
@@ -230,16 +255,27 @@ export function useMeetingNotes() {
         const response = await window.copilot.backend.generateMeetingSummary({
           transcript: saved.transcript,
           intelligenceLevel: settings.intelligenceLevel,
-          language: saved.language
+          language: saved.language,
+          meetingType: saved.meetingType,
+          meetingName: saved.meetingName,
+          meetingDate: saved.meetingDate,
+          orderedParticipants: saved.orderedParticipants,
+          speakerHints: saved.speakerHints
         });
         await window.copilot.meetingNotes.update(entry.filePath, {
           transcript: saved.transcript,
           summary: response.summary,
+          meetingType: saved.meetingType,
+          meetingName: saved.meetingName,
+          meetingDate: saved.meetingDate,
+          orderedParticipants: saved.orderedParticipants,
+          speakerHints: saved.speakerHints,
           language: saved.language,
           startedAt: saved.startedAt,
           endedAt: saved.endedAt
         });
         setSummary(response.summary);
+        setSummaryMeetingType(response.meetingType);
         await refreshSavedNotes();
         setState("idle");
       } catch (cause) {
@@ -322,6 +358,7 @@ export function useMeetingNotes() {
     settings,
     transcript,
     summary,
+    summaryMeetingType,
     error,
     savedPath,
     isRecording,
@@ -337,6 +374,7 @@ export function useMeetingNotes() {
     resumeRecording,
     retrySavedNote,
     refreshSavedNotes,
+    dismissSavedPath: () => setSavedPath(null),
     cancel,
     updateSettings
   };

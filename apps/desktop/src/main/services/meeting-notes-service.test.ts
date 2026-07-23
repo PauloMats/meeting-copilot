@@ -18,6 +18,11 @@ describe("MeetingNotesService", () => {
     const service = new MeetingNotesService(testDirectory);
     const baseRequest = {
       transcript: "Ana will prepare the release notes by Friday.",
+      meetingType: "general_meeting" as const,
+      meetingName: "",
+      meetingDate: "",
+      orderedParticipants: [],
+      speakerHints: [],
       language: "en",
       startedAt: "2026-07-17T12:00:00.000Z",
       endedAt: "2026-07-17T12:30:00.000Z"
@@ -59,6 +64,11 @@ describe("MeetingNotesService", () => {
     const first = await service.save({
       transcript: "Primeira transcrição sem resumo.",
       summary: null,
+      meetingType: "general_meeting",
+      meetingName: "",
+      meetingDate: "",
+      orderedParticipants: [],
+      speakerHints: [],
       language: "pt",
       startedAt: "2026-07-17T12:00:00.000Z",
       endedAt: "2026-07-17T12:10:00.000Z"
@@ -74,6 +84,11 @@ describe("MeetingNotesService", () => {
         next_steps: [],
         open_questions: []
       },
+      meetingType: "general_meeting",
+      meetingName: "",
+      meetingDate: "",
+      orderedParticipants: [],
+      speakerHints: [],
       language: "en",
       startedAt: "2026-07-18T12:00:00.000Z",
       endedAt: "2026-07-18T12:10:00.000Z"
@@ -139,6 +154,11 @@ describe("MeetingNotesService", () => {
         next_steps: [],
         open_questions: []
       },
+      meetingType: "general_meeting",
+      meetingName: "",
+      meetingDate: "",
+      orderedParticipants: [],
+      speakerHints: [],
       language: "pt",
       startedAt: "2026-07-17T12:00:00.000Z",
       endedAt: "2026-07-17T12:10:00.000Z"
@@ -151,5 +171,65 @@ describe("MeetingNotesService", () => {
       title: "Resumo recuperado",
       hasSummary: true
     });
+  });
+
+  it("persists daily context and renders participant dependencies", async () => {
+    testDirectory = await mkdtemp(join(tmpdir(), "meeting-copilot-"));
+    const service = new MeetingNotesService(testDirectory);
+    const saved = await service.save({
+      transcript: "Igor está aguardando uma rota do Victor.",
+      summary: {
+        title: "Daily Dourado — 23/07/2026",
+        overview: "O time possui uma dependência.",
+        participant_updates: [
+          {
+            participant: "Igor",
+            attribution_confidence: "high",
+            summary: "Aguarda uma rota para finalizar a tarefa.",
+            completed: [],
+            in_progress: [],
+            blockers: ["A rota ainda não está disponível."],
+            dependencies: [
+              {
+                person_or_team: "Victor",
+                dependency: "Disponibilização da rota de representantes."
+              }
+            ],
+            next_steps: ["Finalizar a tarefa após a liberação da rota."]
+          }
+        ],
+        team_blockers: [],
+        team_next_steps: [],
+        absent_participants: ["Lúcio"],
+        unresolved_attributions: []
+      },
+      meetingType: "daily",
+      meetingName: "Daily Dourado",
+      meetingDate: "2026-07-23",
+      orderedParticipants: ["Igor", "Rafaela"],
+      speakerHints: [
+        {
+          participant: "Igor",
+          evidence: "A primeira atualização começa após Igor, pode começar."
+        }
+      ],
+      language: "pt",
+      startedAt: "2026-07-23T12:00:00.000Z",
+      endedAt: "2026-07-23T12:10:00.000Z"
+    });
+
+    const markdown = await readFile(saved.filePath, "utf8");
+    expect(markdown).toContain("## Atualizações por participante");
+    expect(markdown).toContain("**Aguardando: Victor**");
+
+    const loaded = await service.read(saved.filePath);
+    expect(loaded).toMatchObject({
+      meetingType: "daily",
+      meetingName: "Daily Dourado",
+      meetingDate: "2026-07-23",
+      orderedParticipants: ["Igor", "Rafaela"],
+      hasSummary: true
+    });
+    expect(loaded.speakerHints[0]?.participant).toBe("Igor");
   });
 });

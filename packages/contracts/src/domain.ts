@@ -23,6 +23,27 @@ export const IntelligenceLevelSchema = z.enum(["basic", "balanced", "advanced"])
 export type IntelligenceLevel = z.infer<typeof IntelligenceLevelSchema>;
 
 export const ConfidenceSchema = z.enum(["high", "medium", "low"]);
+export const MeetingTypeSchema = z.enum(["general_meeting", "daily"]);
+export type MeetingType = z.infer<typeof MeetingTypeSchema>;
+
+export const SpeakerHintSchema = z
+  .object({
+    participant: z.string().trim().min(1).max(120),
+    evidence: z.string().trim().max(1_000).optional(),
+    known_update: z.string().trim().max(1_000).optional()
+  })
+  .refine((hint) => Boolean(hint.evidence || hint.known_update), {
+    message: "A speaker hint requires evidence or a known update"
+  });
+export type SpeakerHint = z.infer<typeof SpeakerHintSchema>;
+
+export const MeetingContextSchema = z.object({
+  meetingName: z.string().trim().max(160).default(""),
+  meetingDate: z.string().trim().max(32).default(""),
+  orderedParticipants: z.array(z.string().trim().min(1).max(120)).max(30).default([]),
+  speakerHints: z.array(SpeakerHintSchema).max(30).default([])
+});
+export type MeetingContext = z.infer<typeof MeetingContextSchema>;
 
 export const AnswerSchema = z.object({
   direct_answer: z.string(),
@@ -62,6 +83,47 @@ export const MeetingSummarySchema = z.object({
 });
 export type MeetingSummary = z.infer<typeof MeetingSummarySchema>;
 
+export const DailySummarySchema = z.object({
+  title: z.string(),
+  overview: z.string(),
+  participant_updates: z
+    .array(
+      z.object({
+        participant: z.string(),
+        attribution_confidence: ConfidenceSchema,
+        summary: z.string(),
+        completed: z.array(z.string()).max(6),
+        in_progress: z.array(z.string()).max(6),
+        blockers: z.array(z.string()).max(6),
+        dependencies: z
+          .array(
+            z.object({
+              person_or_team: z.string(),
+              dependency: z.string()
+            })
+          )
+          .max(6),
+        next_steps: z.array(z.string()).max(6)
+      })
+    )
+    .max(30),
+  team_blockers: z.array(z.string()).max(10),
+  team_next_steps: z.array(z.string()).max(10),
+  absent_participants: z.array(z.string()).max(20),
+  unresolved_attributions: z
+    .array(
+      z.object({
+        summary: z.string(),
+        possible_participants: z.array(z.string()).max(30)
+      })
+    )
+    .max(10)
+});
+export type DailySummary = z.infer<typeof DailySummarySchema>;
+
+export const MeetingResultSchema = z.union([MeetingSummarySchema, DailySummarySchema]);
+export type MeetingResult = z.infer<typeof MeetingResultSchema>;
+
 export const SavedMeetingNoteSchema = z.object({
   filePath: z.string().min(1)
 });
@@ -71,6 +133,8 @@ export interface SavedMeetingNoteEntry {
   filePath: string;
   title: string;
   transcriptPreview: string;
+  meetingType: MeetingType;
+  meetingName: string;
   language: string;
   startedAt: string;
   endedAt: string;
@@ -80,6 +144,9 @@ export interface SavedMeetingNoteEntry {
 
 export interface LoadedMeetingNote extends SavedMeetingNoteEntry {
   transcript: string;
+  meetingDate: string;
+  orderedParticipants: string[];
+  speakerHints: SpeakerHint[];
 }
 
 export const ContextProfileSchema = z.object({

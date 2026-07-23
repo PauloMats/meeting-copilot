@@ -57,14 +57,18 @@ Canonical schemas live in `packages/contracts/src`.
 
 ## Smart meeting-notes flow
 
-1. The user explicitly starts a long-form capture from the Smart Meeting Notes mode.
+1. The user explicitly selects General Meeting or Daily / Team Status and starts a long-form
+   capture from the Smart Meeting Notes mode.
 2. The existing desktop-audio and optional microphone pipeline streams transcription deltas.
 3. On the second click, media tracks stop and the transcription buffer is committed.
 4. Electron saves a transcript-first Markdown draft under `Documents/Meeting Copilot`.
-5. `POST /api/meeting-summaries` applies a dedicated structured prompt that avoids invented owners,
-   deadlines and decisions.
+5. `POST /api/meeting-summaries` selects the matching structured processor. General Meeting
+   extracts topics, decisions and action items. Daily produces person-by-person status using
+   optional participant order and speaker hints as attribution evidence.
 6. Electron rewrites the same Markdown file with the validated summary and full transcript. If the
    provider fails, the transcript-first draft remains available.
+7. Meeting type and Daily attribution context are stored as Markdown metadata so retrying a saved
+   transcript uses the original processor and inputs.
 
 ## Retrieval abstraction
 

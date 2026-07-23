@@ -100,6 +100,15 @@ function registerIpc(
   ipcMain.handle(IPC_CHANNELS.meetingNotesSave, (_event, request: unknown) =>
     meetingNotes.save(SaveMeetingNoteRequestSchema.parse(request))
   );
+  ipcMain.handle(IPC_CHANNELS.meetingNotesList, () => meetingNotes.list());
+  ipcMain.handle(IPC_CHANNELS.meetingNotesRead, (_event, filePath: string) => {
+    if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
+    return meetingNotes.read(filePath);
+  });
+  ipcMain.handle(IPC_CHANNELS.meetingNotesUpdate, (_event, filePath: string, request: unknown) => {
+    if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
+    return meetingNotes.update(filePath, SaveMeetingNoteRequestSchema.parse(request));
+  });
   ipcMain.handle(IPC_CHANNELS.meetingNotesReveal, (_event, filePath: string) => {
     if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
     if (!meetingNotes.isManagedFile(filePath)) throw new Error("Invalid meeting note path");

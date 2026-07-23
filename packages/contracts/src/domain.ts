@@ -67,6 +67,21 @@ export const SavedMeetingNoteSchema = z.object({
 });
 export type SavedMeetingNote = z.infer<typeof SavedMeetingNoteSchema>;
 
+export interface SavedMeetingNoteEntry {
+  filePath: string;
+  title: string;
+  transcriptPreview: string;
+  language: string;
+  startedAt: string;
+  endedAt: string;
+  modifiedAt: string;
+  hasSummary: boolean;
+}
+
+export interface LoadedMeetingNote extends SavedMeetingNoteEntry {
+  transcript: string;
+}
+
 export const ContextProfileSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(120),

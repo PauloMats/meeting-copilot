@@ -2,7 +2,8 @@ import {
   DEFAULT_SETTINGS,
   type AppSettings,
   type CaptureState,
-  type MeetingSummary
+  type MeetingSummary,
+  type SavedMeetingNoteEntry
 } from "@meeting-copilot/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -22,8 +23,12 @@ export function useMeetingNotes() {
   const [error, setError] = useState<string | null>(null);
   const [savedPath, setSavedPath] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [audioLevels, setAudioLevels] = useState<AudioLevels>(EMPTY_AUDIO_LEVELS);
+  const [savedNotes, setSavedNotes] = useState<SavedMeetingNoteEntry[]>([]);
+  const [isLoadingSavedNotes, setIsLoadingSavedNotes] = useState(true);
+  const [retryingPath, setRetryingPath] = useState<string | null>(null);
   const capture = useRef(new AudioCapture());
   const transcriptRef = useRef("");
   const startedAt = useRef<string | null>(null);
@@ -32,15 +37,27 @@ export function useMeetingNotes() {
   const finalizationStarted = useRef(false);
   const finalizationTimer = useRef<number | null>(null);
 
-  useEffect(() => {
-    void window.copilot.settings.get().then(setSettings);
+  const refreshSavedNotes = useCallback(async () => {
+    setIsLoadingSavedNotes(true);
+    try {
+      setSavedNotes(await window.copilot.meetingNotes.list());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load saved transcripts");
+    } finally {
+      setIsLoadingSavedNotes(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!isRecording) return;
+    void window.copilot.settings.get().then(setSettings);
+    void refreshSavedNotes();
+  }, [refreshSavedNotes]);
+
+  useEffect(() => {
+    if (!isRecording || isPaused) return;
     const timer = window.setInterval(() => setElapsedSeconds((value) => value + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [isRecording]);
+  }, [isPaused, isRecording]);
 
   const finalize = useCallback(
     async (value: string) => {
@@ -71,6 +88,7 @@ export function useMeetingNotes() {
         });
         setSavedPath(saved.filePath);
         draftSaved = true;
+        await refreshSavedNotes();
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Could not save the transcript");
       }
@@ -90,6 +108,7 @@ export function useMeetingNotes() {
           endedAt
         });
         setSavedPath(saved.filePath);
+        await refreshSavedNotes();
         setError(null);
         setState("idle");
       } catch (cause) {
@@ -98,7 +117,7 @@ export function useMeetingNotes() {
         setState("error");
       }
     },
-    [settings.intelligenceLevel, settings.language]
+    [refreshSavedNotes, settings.intelligenceLevel, settings.language]
   );
 
   const startRecording = useCallback(async () => {
@@ -106,6 +125,7 @@ export function useMeetingNotes() {
     startInFlight.current = true;
     setState("transcribing");
     setIsRecording(true);
+    setIsPaused(false);
     setElapsedSeconds(0);
     setTranscript("");
     transcriptRef.current = "";
@@ -126,6 +146,7 @@ export function useMeetingNotes() {
         setAudioLevels,
         (message) => {
           setIsRecording(false);
+          setIsPaused(false);
           setError(message);
           void capture.current.stop();
           void window.copilot.capture.stop();
@@ -135,24 +156,9 @@ export function useMeetingNotes() {
       await capture.current.stop();
       await window.copilot.capture.cancel();
       setIsRecording(false);
+      setIsPaused(false);
       setState("error");
-      setError(
-        cause instanceof SystemAudioUnavailableError
-          ? settings.language === "pt"
-            ? "Nenhuma trilha de áudio do PC foi encontrada. Selecione outra tela ou janela e confirme que o som está saindo pelo dispositivo padrão do Windows."
-            : "No system audio track was found. Select another screen or window and confirm that audio is playing through the default Windows output device."
-          : cause instanceof AudioSourceStartError && cause.source === "system"
-            ? settings.language === "pt"
-              ? `O WASAPI não conseguiu iniciar a saída selecionada. Confirme se ela é a mesma usada pela reunião (por exemplo, JBL Quantum Game ou Chat). Detalhe: ${cause.originalMessage}`
-              : `WASAPI could not start the selected output. Confirm it is the same device used by the meeting (for example, JBL Quantum Game or Chat). Detail: ${cause.originalMessage}`
-            : cause instanceof AudioSourceStartError
-              ? settings.language === "pt"
-                ? `O Windows não conseguiu iniciar o microfone. Verifique a permissão ou desative “Incluir microfone” para gravar apenas o áudio do PC. Detalhe: ${cause.originalMessage}`
-                : `Windows could not start the microphone. Check its permission or disable “Include microphone” to capture system audio only. Detail: ${cause.originalMessage}`
-              : cause instanceof Error
-                ? cause.message
-                : "Could not start recording"
-      );
+      setError(audioStartErrorMessage(cause, settings.language));
     } finally {
       startInFlight.current = false;
     }
@@ -170,6 +176,7 @@ export function useMeetingNotes() {
       return;
     }
     setIsRecording(false);
+    setIsPaused(false);
     setState("transcribing");
     await capture.current.stop();
     await window.copilot.capture.stop();
@@ -178,12 +185,84 @@ export function useMeetingNotes() {
     }, 8000);
   }, [finalize, isRecording]);
 
+  const pauseRecording = useCallback(async () => {
+    if (!isRecording || isPaused || startInFlight.current) return;
+    try {
+      await capture.current.pause();
+      setIsPaused(true);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not pause recording");
+    }
+  }, [isPaused, isRecording]);
+
+  const resumeRecording = useCallback(async () => {
+    if (!isRecording || !isPaused || startInFlight.current) return;
+    try {
+      await capture.current.resume();
+      setIsPaused(false);
+      setError(null);
+    } catch (cause) {
+      setError(audioStartErrorMessage(cause, settings.language));
+    }
+  }, [isPaused, isRecording, settings.language]);
+
   const cancel = useCallback(async () => {
     await capture.current.stop();
     await window.copilot.capture.cancel();
     setIsRecording(false);
+    setIsPaused(false);
     setState("idle");
   }, []);
+
+  const retrySavedNote = useCallback(
+    async (entry: SavedMeetingNoteEntry) => {
+      if (isRecording || retryingPath || state === "thinking") return;
+      setRetryingPath(entry.filePath);
+      setState("thinking");
+      setSummary(null);
+      setSavedPath(entry.filePath);
+      setError(null);
+      try {
+        const saved = await window.copilot.meetingNotes.read(entry.filePath);
+        setTranscript(saved.transcript);
+        transcriptRef.current = saved.transcript;
+        const response = await window.copilot.backend.generateMeetingSummary({
+          transcript: saved.transcript,
+          intelligenceLevel: settings.intelligenceLevel,
+          language: saved.language
+        });
+        await window.copilot.meetingNotes.update(entry.filePath, {
+          transcript: saved.transcript,
+          summary: response.summary,
+          language: saved.language,
+          startedAt: saved.startedAt,
+          endedAt: saved.endedAt
+        });
+        setSummary(response.summary);
+        await refreshSavedNotes();
+        setState("idle");
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : "Meeting summary failed";
+        setError(
+          settings.language === "pt"
+            ? `${message} A transcrição continua salva e pode ser reenviada novamente.`
+            : `${message} The transcript is still saved and can be retried again.`
+        );
+        setState("error");
+      } finally {
+        setRetryingPath(null);
+      }
+    },
+    [
+      isRecording,
+      refreshSavedNotes,
+      retryingPath,
+      settings.intelligenceLevel,
+      settings.language,
+      state
+    ]
+  );
 
   useEffect(() => {
     const unsubscribe = [
@@ -211,6 +290,7 @@ export function useMeetingNotes() {
       }),
       window.copilot.events.onTranscriptionError((message) => {
         setIsRecording(false);
+        setIsPaused(false);
         void capture.current.stop();
         if (transcriptRef.current.trim()) {
           setError(`${message} Saving the partial transcript.`);
@@ -245,11 +325,39 @@ export function useMeetingNotes() {
     error,
     savedPath,
     isRecording,
+    isPaused,
     elapsedSeconds,
     audioLevels,
+    savedNotes,
+    isLoadingSavedNotes,
+    retryingPath,
     startRecording,
     stopRecording,
+    pauseRecording,
+    resumeRecording,
+    retrySavedNote,
+    refreshSavedNotes,
     cancel,
     updateSettings
   };
+}
+
+function audioStartErrorMessage(cause: unknown, language: string): string {
+  return cause instanceof SystemAudioUnavailableError
+    ? language === "pt"
+      ? "Nenhuma trilha de áudio do PC foi encontrada. Selecione outra tela ou janela e confirme que o som está saindo pelo dispositivo padrão do Windows."
+      : "No system audio track was found. Select another screen or window and confirm that audio is playing through the default Windows output device."
+    : cause instanceof AudioSourceStartError && cause.source === "system"
+      ? language === "pt"
+        ? `O WASAPI não conseguiu iniciar a saída selecionada. Confirme se ela é a mesma usada pela reunião (por exemplo, JBL Quantum Game ou Chat). Detalhe: ${cause.originalMessage}`
+        : `WASAPI could not start the selected output. Confirm it is the same device used by the meeting (for example, JBL Quantum Game or Chat). Detail: ${cause.originalMessage}`
+      : cause instanceof AudioSourceStartError
+        ? language === "pt"
+          ? `O Windows não conseguiu iniciar o microfone. Verifique a permissão ou desative “Incluir microfone” para gravar apenas o áudio do PC. Detalhe: ${cause.originalMessage}`
+          : `Windows could not start the microphone. Check its permission or disable “Include microphone” to capture system audio only. Detail: ${cause.originalMessage}`
+        : cause instanceof Error
+          ? cause.message
+          : language === "pt"
+            ? "Não foi possível iniciar a gravação"
+            : "Could not start recording";
 }

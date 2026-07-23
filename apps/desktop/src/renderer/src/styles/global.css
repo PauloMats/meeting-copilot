@@ -899,6 +899,11 @@ footer span::before {
   box-shadow: inset 0 0 60px rgba(255, 79, 105, 0.035);
 }
 
+.recording-console.is-paused {
+  border-color: rgba(240, 190, 107, 0.5);
+  box-shadow: inset 0 0 60px rgba(240, 190, 107, 0.035);
+}
+
 .recording-kicker {
   color: #64d8c5;
   font-size: 10px;
@@ -908,6 +913,10 @@ footer span::before {
 
 .is-recording .recording-kicker {
   color: #ff8394;
+}
+
+.is-paused .recording-kicker {
+  color: #f0be6b;
 }
 
 .recording-copy h2 {
@@ -929,6 +938,36 @@ footer span::before {
   justify-content: center;
   padding: 14px 18px;
   border-radius: 999px;
+}
+
+.recording-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pause-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 108px;
+  padding: 13px 16px;
+  border-radius: 999px;
+}
+
+.pause-button span {
+  color: #f0be6b;
+  font-size: 12px;
+}
+
+.resume-button {
+  border-color: rgba(83, 224, 193, 0.4);
+  color: #bdf5e9;
+}
+
+.resume-button span {
+  color: #64d8c5;
 }
 
 .record-button-icon {
@@ -979,6 +1018,129 @@ footer span::before {
 .saved-note strong {
   color: #b8c9dc;
   font-weight: 550;
+}
+
+.saved-transcripts {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid #202a39;
+  border-radius: 14px;
+  background: rgba(10, 16, 25, 0.82);
+}
+
+.saved-transcripts-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.saved-transcripts-heading h2 {
+  margin-top: 5px;
+  color: #e7eef8;
+  font-size: 17px;
+}
+
+.saved-transcripts-heading > div > p:last-child {
+  margin: 5px 0 0;
+  color: #75869b;
+  font-size: 11px;
+}
+
+.saved-transcripts-empty {
+  margin: 16px 0 0;
+  padding: 18px;
+  border: 1px dashed #29374a;
+  border-radius: 10px;
+  color: #708198;
+  font-size: 12px;
+  text-align: center;
+}
+
+.saved-transcript-list {
+  display: grid;
+  gap: 9px;
+  max-height: 300px;
+  margin-top: 14px;
+  padding-right: 4px;
+  overflow-y: auto;
+}
+
+.saved-transcript-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 13px 14px;
+  border: 1px solid #243044;
+  border-radius: 11px;
+  background: rgba(7, 12, 20, 0.62);
+}
+
+.saved-transcript-copy {
+  min-width: 0;
+}
+
+.saved-transcript-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.saved-transcript-title strong {
+  overflow: hidden;
+  color: #dbe6f4;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-transcript-title span {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.saved-transcript-title .has-summary {
+  color: #76dbc6;
+  background: rgba(83, 224, 193, 0.1);
+}
+
+.saved-transcript-title .needs-summary {
+  color: #f0be6b;
+  background: rgba(240, 190, 107, 0.1);
+}
+
+.saved-transcript-copy time {
+  display: block;
+  margin-top: 4px;
+  color: #64758a;
+  font-size: 9px;
+}
+
+.saved-transcript-copy p {
+  margin: 7px 0 0;
+  overflow: hidden;
+  color: #8899ad;
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-transcript-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.retry-summary-button {
+  color: #09241f;
+  background: #64d8c5;
 }
 
 .notes-workspace {
@@ -1133,6 +1295,22 @@ footer span::before {
 
   .record-button {
     width: 100%;
+  }
+
+  .recording-actions {
+    width: 100%;
+  }
+
+  .recording-actions > button {
+    flex: 1;
+  }
+
+  .saved-transcript-item {
+    grid-template-columns: 1fr;
+  }
+
+  .saved-transcript-actions {
+    justify-content: flex-end;
   }
 
   .recording-timer {

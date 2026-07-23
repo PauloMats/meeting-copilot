@@ -11,6 +11,8 @@ import {
   MeetingSummarySchema,
   type AppSettings,
   type CaptureState,
+  type LoadedMeetingNote,
+  type SavedMeetingNoteEntry,
   type SavedMeetingNote
 } from "./domain.js";
 
@@ -38,6 +40,9 @@ export const IPC_CHANNELS = {
   answerGenerate: "answer:generate",
   meetingSummaryGenerate: "meeting-summary:generate",
   meetingNotesSave: "meeting-notes:save",
+  meetingNotesList: "meeting-notes:list",
+  meetingNotesRead: "meeting-notes:read",
+  meetingNotesUpdate: "meeting-notes:update",
   meetingNotesReveal: "meeting-notes:reveal",
   realtimeToken: "realtime:token",
   overlaySet: "overlay:set",
@@ -106,6 +111,9 @@ export interface CopilotApi {
   };
   meetingNotes: {
     save(request: SaveMeetingNoteRequest): Promise<SavedMeetingNote>;
+    list(): Promise<SavedMeetingNoteEntry[]>;
+    read(filePath: string): Promise<LoadedMeetingNote>;
+    update(filePath: string, request: SaveMeetingNoteRequest): Promise<SavedMeetingNote>;
     reveal(filePath: string): Promise<void>;
   };
   window: {

@@ -46,6 +46,10 @@ const api: CopilotApi = {
   },
   meetingNotes: {
     save: (request) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesSave, request),
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesList),
+    read: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesRead, filePath),
+    update: (filePath, request) =>
+      ipcRenderer.invoke(IPC_CHANNELS.meetingNotesUpdate, filePath, request),
     reveal: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesReveal, filePath)
   },
   window: {

@@ -1,9 +1,11 @@
 import type {
+  LoadedMeetingNote,
   MeetingSummary,
   SaveMeetingNoteRequest,
+  SavedMeetingNoteEntry,
   SavedMeetingNote
 } from "@meeting-copilot/contracts";
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 export class MeetingNotesService {
@@ -16,10 +18,55 @@ export class MeetingNotesService {
   async save(request: SaveMeetingNoteRequest): Promise<SavedMeetingNote> {
     await mkdir(this.notesDirectory, { recursive: true });
     const filePath = join(this.notesDirectory, filenameFor(request.startedAt));
+    return this.write(filePath, request);
+  }
+
+  async update(filePath: string, request: SaveMeetingNoteRequest): Promise<SavedMeetingNote> {
+    if (!this.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
+    return this.write(filePath, request);
+  }
+
+  private async write(
+    filePath: string,
+    request: SaveMeetingNoteRequest
+  ): Promise<SavedMeetingNote> {
     const temporaryPath = `${filePath}.tmp`;
     await writeFile(temporaryPath, renderMeetingNote(request), "utf8");
     await rename(temporaryPath, filePath);
     return { filePath };
+  }
+
+  async list(): Promise<SavedMeetingNoteEntry[]> {
+    let filenames: string[];
+    try {
+      const entries = await readdir(this.notesDirectory, { withFileTypes: true });
+      filenames = entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+        .map((entry) => entry.name);
+    } catch (cause) {
+      if (isMissingDirectoryError(cause)) return [];
+      throw cause;
+    }
+
+    const notes = await Promise.all(
+      filenames.map(async (filename) => {
+        try {
+          return await this.read(join(this.notesDirectory, filename));
+        } catch {
+          return null;
+        }
+      })
+    );
+    return notes
+      .filter((note): note is LoadedMeetingNote => note !== null)
+      .map(toSavedMeetingNoteEntry)
+      .sort((left, right) => right.startedAt.localeCompare(left.startedAt));
+  }
+
+  async read(filePath: string): Promise<LoadedMeetingNote> {
+    if (!this.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
+    const [content, fileStats] = await Promise.all([readFile(filePath, "utf8"), stat(filePath)]);
+    return parseMeetingNote(filePath, content, fileStats.mtime.toISOString());
   }
 
   isManagedFile(filePath: string): boolean {
@@ -41,6 +88,7 @@ function renderMeetingNote(request: SaveMeetingNoteRequest): string {
     "",
     `- ${portuguese ? "Início" : "Started"}: ${request.startedAt}`,
     `- ${portuguese ? "Fim" : "Ended"}: ${request.endedAt}`,
+    `- ${portuguese ? "Idioma" : "Language"}: ${request.language}`,
     "",
     summary
       ? renderSummary(summary, portuguese)
@@ -54,6 +102,67 @@ function renderMeetingNote(request: SaveMeetingNoteRequest): string {
     ""
   ];
   return sections.join("\n");
+}
+
+function toSavedMeetingNoteEntry(note: LoadedMeetingNote): SavedMeetingNoteEntry {
+  return {
+    filePath: note.filePath,
+    title: note.title,
+    transcriptPreview: note.transcriptPreview,
+    language: note.language,
+    startedAt: note.startedAt,
+    endedAt: note.endedAt,
+    modifiedAt: note.modifiedAt,
+    hasSummary: note.hasSummary
+  };
+}
+
+function parseMeetingNote(
+  filePath: string,
+  content: string,
+  modifiedAt: string
+): LoadedMeetingNote {
+  const title = matchRequired(content, /^#\s+(.+)$/m, "title");
+  const startedAt = matchRequired(content, /^- (?:Início|Started):\s*(.+)$/m, "start time");
+  const endedAt = matchRequired(content, /^- (?:Fim|Ended):\s*(.+)$/m, "end time");
+  if (Number.isNaN(Date.parse(startedAt)) || Number.isNaN(Date.parse(endedAt))) {
+    throw new Error("Meeting note date metadata is invalid");
+  }
+  const transcriptMarker = /^## (?:Transcrição|Transcript)\s*$/m.exec(content);
+  if (transcriptMarker?.index === undefined) {
+    throw new Error("Meeting note transcript section is missing");
+  }
+  const transcript = content.slice(transcriptMarker.index + transcriptMarker[0].length).trim();
+  if (!transcript) throw new Error("Meeting note transcript is empty");
+
+  const explicitLanguage = /^- (?:Idioma|Language):\s*(\S+)\s*$/m.exec(content)?.[1];
+  const language = explicitLanguage ?? (/^## Transcrição\s*$/m.test(content) ? "pt" : "en");
+  return {
+    filePath,
+    title,
+    transcript,
+    transcriptPreview: transcript.replace(/\s+/g, " ").slice(0, 180),
+    language,
+    startedAt,
+    endedAt,
+    modifiedAt,
+    hasSummary: /^## (?:Visão geral|Overview)\s*$/m.test(content)
+  };
+}
+
+function matchRequired(content: string, pattern: RegExp, field: string): string {
+  const value = pattern.exec(content)?.[1]?.trim();
+  if (!value) throw new Error(`Meeting note ${field} is missing`);
+  return value;
+}
+
+function isMissingDirectoryError(cause: unknown): boolean {
+  return (
+    typeof cause === "object" &&
+    cause !== null &&
+    "code" in cause &&
+    (cause as { code?: string }).code === "ENOENT"
+  );
 }
 
 function renderSummary(summary: MeetingSummary, portuguese: boolean): string {

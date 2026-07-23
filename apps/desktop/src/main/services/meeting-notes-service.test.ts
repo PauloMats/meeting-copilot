@@ -1,5 +1,5 @@
 import type { MeetingSummary } from "@meeting-copilot/contracts";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -49,6 +49,107 @@ describe("MeetingNotesService", () => {
     expect(markdown).toContain("# Release planning");
     expect(markdown).toContain("- [ ] Prepare the release notes");
     expect(markdown).toContain("## Transcript");
+    expect(markdown).toContain("- Language: en");
     expect(service.isManagedFile(completed.filePath)).toBe(true);
+  });
+
+  it("lists saved transcripts and reads the full transcript for retry", async () => {
+    testDirectory = await mkdtemp(join(tmpdir(), "meeting-copilot-"));
+    const service = new MeetingNotesService(testDirectory);
+    const first = await service.save({
+      transcript: "Primeira transcrição sem resumo.",
+      summary: null,
+      language: "pt",
+      startedAt: "2026-07-17T12:00:00.000Z",
+      endedAt: "2026-07-17T12:10:00.000Z"
+    });
+    await service.save({
+      transcript: "Second transcript.",
+      summary: {
+        title: "Second meeting",
+        overview: "Already summarized.",
+        key_topics: [],
+        decisions: [],
+        action_items: [],
+        next_steps: [],
+        open_questions: []
+      },
+      language: "en",
+      startedAt: "2026-07-18T12:00:00.000Z",
+      endedAt: "2026-07-18T12:10:00.000Z"
+    });
+
+    const notes = await service.list();
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toMatchObject({
+      title: "Second meeting",
+      language: "en",
+      hasSummary: true
+    });
+    expect(notes[1]).toMatchObject({
+      filePath: first.filePath,
+      title: "Ata da reunião",
+      language: "pt",
+      hasSummary: false,
+      transcriptPreview: "Primeira transcrição sem resumo."
+    });
+
+    const loaded = await service.read(first.filePath);
+    expect(loaded.transcript).toBe("Primeira transcrição sem resumo.");
+  });
+
+  it("keeps old saved notes without explicit language compatible", async () => {
+    testDirectory = await mkdtemp(join(tmpdir(), "meeting-copilot-"));
+    const service = new MeetingNotesService(testDirectory);
+    const notesDirectory = join(testDirectory, "Meeting Copilot");
+    await mkdir(notesDirectory, { recursive: true });
+    const filePath = join(notesDirectory, "meeting-legacy.md");
+    await writeFile(
+      filePath,
+      [
+        "# Ata da reunião",
+        "",
+        "- Início: 2026-07-17T12:00:00.000Z",
+        "- Fim: 2026-07-17T12:10:00.000Z",
+        "",
+        "_O resumo da IA ainda está sendo gerado._",
+        "",
+        "## Transcrição",
+        "",
+        "Uma transcrição antiga."
+      ].join("\n"),
+      "utf8"
+    );
+
+    const [loaded] = await service.list();
+    expect(loaded).toMatchObject({
+      language: "pt",
+      hasSummary: false,
+      transcriptPreview: "Uma transcrição antiga."
+    });
+
+    await service.update(filePath, {
+      transcript: "Uma transcrição antiga.",
+      summary: {
+        title: "Resumo recuperado",
+        overview: "A transcrição antiga foi reenviada.",
+        key_topics: [],
+        decisions: [],
+        action_items: [],
+        next_steps: [],
+        open_questions: []
+      },
+      language: "pt",
+      startedAt: "2026-07-17T12:00:00.000Z",
+      endedAt: "2026-07-17T12:10:00.000Z"
+    });
+
+    const updated = await service.list();
+    expect(updated).toHaveLength(1);
+    expect(updated[0]).toMatchObject({
+      filePath,
+      title: "Resumo recuperado",
+      hasSummary: true
+    });
   });
 });

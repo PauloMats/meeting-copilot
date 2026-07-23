@@ -12,11 +12,19 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
   const [selectedSource, setSelectedSource] = useState<AudioDevice | null>(null);
   const pt = notes.settings.language === "pt";
   const isBusy =
-    notes.state === "thinking" || (!notes.isRecording && notes.state === "transcribing");
+    notes.state === "thinking" ||
+    Boolean(notes.retryingPath) ||
+    (!notes.isRecording && notes.state === "transcribing");
   const stateLabels = {
     idle: pt ? "Pronto" : "Ready",
-    listening: pt ? "Gravando" : "Recording",
-    transcribing: pt ? "Transcrevendo" : "Transcribing",
+    listening: notes.isPaused ? (pt ? "Pausada" : "Paused") : pt ? "Gravando" : "Recording",
+    transcribing: notes.isPaused
+      ? pt
+        ? "Pausada"
+        : "Paused"
+      : pt
+        ? "Transcrevendo"
+        : "Transcribing",
     ready_to_send: pt ? "Finalizando" : "Finalizing",
     thinking: pt ? "Criando resumo" : "Creating summary",
     answering: pt ? "Criando resumo" : "Creating summary",
@@ -128,81 +136,116 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
             </strong>
           </div>
           <small>
-            {notes.isRecording
+            {notes.isPaused
               ? pt
-                ? "Monitorando em tempo real"
-                : "Monitoring in real time"
-              : pt
-                ? "Os níveis aparecem ao iniciar"
-                : "Levels appear when recording starts"}
+                ? "Captura pausada"
+                : "Capture paused"
+              : notes.isRecording
+                ? pt
+                  ? "Monitorando em tempo real"
+                  : "Monitoring in real time"
+                : pt
+                  ? "Os níveis aparecem ao iniciar"
+                  : "Levels appear when recording starts"}
           </small>
         </div>
         <div className="audio-meter-grid">
           <AudioLevelMeter
             label={pt ? "Áudio do PC" : "System audio"}
             level={notes.audioLevels.system}
-            active={notes.isRecording}
+            active={notes.isRecording && !notes.isPaused}
             enabled={Boolean(selectedSource)}
             pt={pt}
           />
           <AudioLevelMeter
             label={pt ? "Microfone" : "Microphone"}
             level={notes.audioLevels.microphone ?? 0}
-            active={notes.isRecording}
+            active={notes.isRecording && !notes.isPaused}
             enabled={notes.settings.includeMicrophone}
             pt={pt}
           />
         </div>
       </section>
 
-      <section className={`recording-console ${notes.isRecording ? "is-recording" : ""}`}>
+      <section
+        className={`recording-console ${notes.isRecording ? "is-recording" : ""} ${
+          notes.isPaused ? "is-paused" : ""
+        }`}
+      >
         <div className="recording-copy">
           <span className="recording-kicker">
-            {notes.isRecording
+            {notes.isPaused
               ? pt
-                ? "GRAVAÇÃO EM ANDAMENTO"
-                : "RECORDING IN PROGRESS"
-              : pt
-                ? "PRONTO PARA COMEÇAR"
-                : "READY TO START"}
+                ? "GRAVAÇÃO PAUSADA"
+                : "RECORDING PAUSED"
+              : notes.isRecording
+                ? pt
+                  ? "GRAVAÇÃO EM ANDAMENTO"
+                  : "RECORDING IN PROGRESS"
+                : pt
+                  ? "PRONTO PARA COMEÇAR"
+                  : "READY TO START"}
           </span>
           <h2>
-            {notes.isRecording
+            {notes.isPaused
               ? pt
-                ? "Estou ouvindo a reunião"
-                : "Listening to your meeting"
-              : isBusy
+                ? "Este trecho não está sendo transcrito"
+                : "This part is not being transcribed"
+              : notes.isRecording
                 ? pt
-                  ? "Organizando suas anotações"
-                  : "Organizing your notes"
-                : pt
-                  ? "Um clique inicia. Outro finaliza."
-                  : "One click starts. Another finishes."}
+                  ? "Estou ouvindo a reunião"
+                  : "Listening to your meeting"
+                : isBusy
+                  ? pt
+                    ? "Organizando suas anotações"
+                    : "Organizing your notes"
+                  : pt
+                    ? "Um clique inicia. Outro finaliza."
+                    : "One click starts. Another finishes."}
           </h2>
           <p>
-            {notes.isRecording
+            {notes.isPaused
               ? pt
-                ? "A transcrição aparece abaixo em tempo real."
-                : "The transcript appears below in real time."
-              : pt
-                ? "Ao finalizar, a transcrição será salva e resumida pela IA."
-                : "When finished, the transcript is saved and summarized by AI."}
+                ? "Retome quando a conversa voltar a ser relevante."
+                : "Resume when the conversation becomes relevant again."
+              : notes.isRecording
+                ? pt
+                  ? "A transcrição aparece abaixo em tempo real."
+                  : "The transcript appears below in real time."
+                : pt
+                  ? "Ao finalizar, a transcrição será salva e resumida pela IA."
+                  : "When finished, the transcript is saved and summarized by AI."}
           </p>
         </div>
-        <button
-          className={`record-button ${notes.isRecording ? "record-button-stop" : ""}`}
-          disabled={isBusy || (!notes.isRecording && !selectedSource)}
-          onClick={() => void (notes.isRecording ? notes.stopRecording() : notes.startRecording())}
-        >
-          <span className="record-button-icon" aria-hidden="true" />
-          {notes.isRecording
-            ? pt
-              ? "Finalizar"
-              : "Finish"
-            : pt
-              ? "Gravar reunião"
-              : "Record meeting"}
-        </button>
+        <div className="recording-actions">
+          {notes.isRecording && (
+            <button
+              className={`secondary pause-button ${notes.isPaused ? "resume-button" : ""}`}
+              onClick={() =>
+                void (notes.isPaused ? notes.resumeRecording() : notes.pauseRecording())
+              }
+            >
+              <span aria-hidden="true">{notes.isPaused ? "▶" : "Ⅱ"}</span>
+              {notes.isPaused ? (pt ? "Retomar" : "Resume") : pt ? "Pausar" : "Pause"}
+            </button>
+          )}
+          <button
+            className={`record-button ${notes.isRecording ? "record-button-stop" : ""}`}
+            disabled={isBusy || (!notes.isRecording && !selectedSource)}
+            onClick={() =>
+              void (notes.isRecording ? notes.stopRecording() : notes.startRecording())
+            }
+          >
+            <span className="record-button-icon" aria-hidden="true" />
+            {notes.isRecording
+              ? pt
+                ? "Finalizar"
+                : "Finish"
+              : pt
+                ? "Gravar reunião"
+                : "Record meeting"}
+          </button>
+        </div>
         <div className="recording-timer">{formatDuration(notes.elapsedSeconds)}</div>
       </section>
 
@@ -220,6 +263,87 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
           </button>
         </div>
       )}
+
+      <section className="saved-transcripts">
+        <div className="saved-transcripts-heading">
+          <div>
+            <p className="eyebrow">{pt ? "TRANSCRIÇÕES SALVAS" : "SAVED TRANSCRIPTS"}</p>
+            <h2>{pt ? "Reenvie uma reunião anterior" : "Retry a previous meeting"}</h2>
+            <p>
+              {pt
+                ? "As atas ficam em Documentos/Meeting Copilot. O reenvio atualiza o mesmo arquivo."
+                : "Notes stay in Documents/Meeting Copilot. Retrying updates the same file."}
+            </p>
+          </div>
+          <button
+            className="secondary compact-button"
+            disabled={notes.isLoadingSavedNotes}
+            onClick={() => void notes.refreshSavedNotes()}
+          >
+            ↻ {pt ? "Atualizar" : "Refresh"}
+          </button>
+        </div>
+        {notes.isLoadingSavedNotes ? (
+          <p className="saved-transcripts-empty">
+            {pt ? "Carregando transcrições…" : "Loading transcripts…"}
+          </p>
+        ) : notes.savedNotes.length === 0 ? (
+          <p className="saved-transcripts-empty">
+            {pt ? "Nenhuma transcrição salva foi encontrada." : "No saved transcripts were found."}
+          </p>
+        ) : (
+          <div className="saved-transcript-list">
+            {notes.savedNotes.map((entry) => {
+              const retrying = notes.retryingPath === entry.filePath;
+              return (
+                <article className="saved-transcript-item" key={entry.filePath}>
+                  <div className="saved-transcript-copy">
+                    <div className="saved-transcript-title">
+                      <strong>{entry.title}</strong>
+                      <span className={entry.hasSummary ? "has-summary" : "needs-summary"}>
+                        {entry.hasSummary
+                          ? pt
+                            ? "Resumo pronto"
+                            : "Summary ready"
+                          : pt
+                            ? "Aguardando resumo"
+                            : "Needs summary"}
+                      </span>
+                    </div>
+                    <time dateTime={entry.startedAt}>{formatMeetingDate(entry.startedAt, pt)}</time>
+                    <p>{entry.transcriptPreview}</p>
+                  </div>
+                  <div className="saved-transcript-actions">
+                    <button
+                      className="secondary compact-button"
+                      onClick={() => void window.copilot.meetingNotes.reveal(entry.filePath)}
+                    >
+                      {pt ? "Mostrar arquivo" : "Show file"}
+                    </button>
+                    <button
+                      className="compact-button retry-summary-button"
+                      disabled={notes.isRecording || isBusy}
+                      onClick={() => void notes.retrySavedNote(entry)}
+                    >
+                      {retrying
+                        ? pt
+                          ? "Enviando…"
+                          : "Sending…"
+                        : entry.hasSummary
+                          ? pt
+                            ? "Gerar novamente"
+                            : "Generate again"
+                          : pt
+                            ? "Gerar resumo"
+                            : "Generate summary"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <section className="notes-workspace">
         <div className="transcript-panel notes-transcript">
@@ -321,4 +445,11 @@ function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
+function formatMeetingDate(value: string, portuguese: boolean): string {
+  return new Intl.DateTimeFormat(portuguese ? "pt-BR" : "en", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }

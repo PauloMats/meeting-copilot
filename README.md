@@ -23,6 +23,8 @@ decisions, action items, owners, deadlines, next steps, and open questions.
 - Optional ordered participants and speaker hints to improve Daily attribution.
 - Dedicated structured AI prompts that do not invent owners, deadlines, decisions, or updates.
 - Automatic Markdown notes under the user's `Documents/Meeting Copilot` directory.
+- Structured JSON sidecars preserve the exact AI result locally for reuse without another AI call.
+- Local PDF and standalone HTML export, plus formatted copy for email, Docs, or Word.
 - Transcript-first persistence: the raw transcript remains saved if AI summarization fails.
 - Saved transcripts retain their meeting type and attribution context for safe retry.
 

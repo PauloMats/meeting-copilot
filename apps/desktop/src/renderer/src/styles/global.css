@@ -1326,6 +1326,11 @@ footer span::before {
   background: rgba(240, 190, 107, 0.1);
 }
 
+.saved-transcript-title .legacy-summary {
+  color: #b7a1ff;
+  background: rgba(144, 116, 255, 0.12);
+}
+
 .saved-transcript-title .meeting-type-badge {
   color: #a9b9ce;
   background: rgba(109, 130, 158, 0.15);
@@ -1387,6 +1392,203 @@ footer span::before {
 
 .notes-summary {
   overflow: auto;
+}
+
+.notes-summary-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -2px 0 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #202b3b;
+}
+
+.notes-summary-toolbar > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.notes-summary-ready {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #dffaf4;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.notes-summary-ready span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #071c18;
+  background: #64d8c5;
+  font-size: 10px;
+}
+
+.notes-summary-toolbar small {
+  color: #708198;
+  font-size: 9px;
+}
+
+.meeting-export {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.meeting-export-menu {
+  position: relative;
+  flex: none;
+  padding: 0;
+  border: 0;
+  color: inherit;
+}
+
+.meeting-export-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 96px;
+  justify-content: center;
+  color: #c8f7ee;
+  border-color: rgba(84, 217, 192, 0.3);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.meeting-export-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.meeting-export-trigger::after {
+  content: "⌄";
+  margin-left: 1px;
+  color: #7e91a8;
+  font-size: 10px;
+}
+
+.meeting-export-menu[open] .meeting-export-trigger {
+  color: #081d19;
+  background: #64d8c5;
+}
+
+.meeting-export-trigger[aria-disabled="true"] {
+  color: #5d6b7d;
+  border-color: #273244;
+  background: rgba(13, 20, 31, 0.5);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.meeting-export-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  width: 250px;
+  padding: 7px;
+  border: 1px solid #2b394d;
+  border-radius: 12px;
+  background: #111a27;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.meeting-export-popover button {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
+  color: #c8d4e3;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+}
+
+.meeting-export-popover button:hover:not(:disabled) {
+  color: #eff8ff;
+  background: rgba(84, 217, 192, 0.09);
+}
+
+.meeting-export-popover button > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.meeting-export-popover strong {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.meeting-export-popover small {
+  color: #788ba3;
+  font-size: 9px;
+}
+
+.meeting-export-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 28px;
+  border: 1px solid rgba(84, 217, 192, 0.25);
+  border-radius: 7px;
+  color: #7ce3d0;
+  background: rgba(84, 217, 192, 0.07);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.meeting-export-icon.copy-icon {
+  position: relative;
+}
+
+.meeting-export-icon.copy-icon::before,
+.meeting-export-icon.copy-icon::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 12px;
+  border: 1px solid #7ce3d0;
+  border-radius: 2px;
+}
+
+.meeting-export-icon.copy-icon::before {
+  transform: translate(-2px, -2px);
+}
+
+.meeting-export-icon.copy-icon::after {
+  background: #112822;
+  transform: translate(2px, 2px);
+}
+
+.meeting-export-feedback {
+  max-width: 165px;
+  overflow: hidden;
+  color: #74dbc7;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meeting-export.is-compact .meeting-export-feedback {
+  position: absolute;
+  right: 0;
+  bottom: -17px;
+}
+
+.saved-transcript-list:has(.meeting-export-menu[open]) {
+  max-height: none;
+  overflow: visible;
 }
 
 .summary-loader {

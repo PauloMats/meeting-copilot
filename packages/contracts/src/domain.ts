@@ -124,10 +124,32 @@ export type DailySummary = z.infer<typeof DailySummarySchema>;
 export const MeetingResultSchema = z.union([MeetingSummarySchema, DailySummarySchema]);
 export type MeetingResult = z.infer<typeof MeetingResultSchema>;
 
+export const MeetingNoteDataSchema = z.object({
+  schema_version: z.literal(1),
+  meeting: z.object({
+    type: MeetingTypeSchema,
+    name: z.string(),
+    date: z.string(),
+    language: z.string(),
+    started_at: z.string().datetime(),
+    ended_at: z.string().datetime(),
+    ordered_participants: z.array(z.string()),
+    speaker_hints: z.array(SpeakerHintSchema)
+  }),
+  ai_result: MeetingResultSchema.nullable()
+});
+export type MeetingNoteData = z.infer<typeof MeetingNoteDataSchema>;
+
 export const SavedMeetingNoteSchema = z.object({
   filePath: z.string().min(1)
 });
 export type SavedMeetingNote = z.infer<typeof SavedMeetingNoteSchema>;
+
+export const MeetingExportResultSchema = z.object({
+  status: z.enum(["saved", "copied", "cancelled"]),
+  filePath: z.string().nullable()
+});
+export type MeetingExportResult = z.infer<typeof MeetingExportResultSchema>;
 
 export interface SavedMeetingNoteEntry {
   filePath: string;
@@ -140,10 +162,13 @@ export interface SavedMeetingNoteEntry {
   endedAt: string;
   modifiedAt: string;
   hasSummary: boolean;
+  hasStructuredResult: boolean;
 }
 
 export interface LoadedMeetingNote extends SavedMeetingNoteEntry {
   transcript: string;
+  structuredResult: MeetingResult | null;
+  dataFilePath: string | null;
   meetingDate: string;
   orderedParticipants: string[];
   speakerHints: SpeakerHint[];

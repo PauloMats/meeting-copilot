@@ -3,6 +3,7 @@ import { useState } from "react";
 import { SourcePicker } from "./SourcePicker";
 import { StateIndicator } from "./StateIndicator";
 import { MeetingResultCard } from "./MeetingResultCard";
+import { MeetingExportMenu } from "./MeetingExportMenu";
 import { useMeetingNotes } from "../hooks/use-meeting-notes";
 import { languages } from "../i18n";
 import { WindowTitleBar } from "./WindowTitleBar";
@@ -336,7 +337,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
       </section>
 
       {notes.error && <p className="error-message notes-error">{notes.error}</p>}
-      {notes.savedPath && (
+      {notes.savedPath && notes.savedNoticeVisible && (
         <div className="saved-note">
           <span>
             ✓ {pt ? "Ata salva em" : "Notes saved to"} <strong>{notes.savedPath}</strong>
@@ -408,11 +409,30 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                             ? "Aguardando resumo"
                             : "Needs summary"}
                       </span>
+                      {entry.hasSummary && !entry.hasStructuredResult && (
+                        <span
+                          className="legacy-summary"
+                          title={
+                            pt
+                              ? "Gere novamente para habilitar as exportações da v0.5."
+                              : "Generate again to enable v0.5 exports."
+                          }
+                        >
+                          {pt ? "Exportação pendente" : "Export pending"}
+                        </span>
+                      )}
                     </div>
                     <time dateTime={entry.startedAt}>{formatMeetingDate(entry.startedAt, pt)}</time>
                     <p>{entry.transcriptPreview}</p>
                   </div>
                   <div className="saved-transcript-actions">
+                    <MeetingExportMenu
+                      filePath={entry.filePath}
+                      structuredResultAvailable={entry.hasStructuredResult}
+                      disabled={notes.isRecording || isBusy}
+                      portuguese={pt}
+                      compact
+                    />
                     <button
                       className="secondary compact-button"
                       onClick={() => void window.copilot.meetingNotes.reveal(entry.filePath)}
@@ -462,11 +482,32 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         </div>
         <div className="answer-panel notes-summary">
           {notes.summary ? (
-            <MeetingResultCard
-              result={notes.summary}
-              meetingType={notes.summaryMeetingType}
-              portuguese={pt}
-            />
+            <>
+              <div className="notes-summary-toolbar">
+                <div>
+                  <span className="notes-summary-ready">
+                    <span aria-hidden="true">✓</span>
+                    {pt ? "Ata organizada e pronta" : "Meeting notes ready"}
+                  </span>
+                  <small>
+                    {pt
+                      ? "A exportação usa o resultado salvo e não consome IA novamente."
+                      : "Export uses the saved result and does not call AI again."}
+                  </small>
+                </div>
+                <MeetingExportMenu
+                  filePath={notes.savedPath}
+                  structuredResultAvailable={notes.summaryExportReady}
+                  disabled={isBusy}
+                  portuguese={pt}
+                />
+              </div>
+              <MeetingResultCard
+                result={notes.summary}
+                meetingType={notes.summaryMeetingType}
+                portuguese={pt}
+              />
+            </>
           ) : (
             <div className="empty-answer">
               <div className={isBusy ? "summary-loader" : "pulse-ring"} />

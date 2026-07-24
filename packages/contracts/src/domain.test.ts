@@ -3,6 +3,7 @@ import {
   AnswerSchema,
   DailySummarySchema,
   DEFAULT_SETTINGS,
+  MeetingNoteDataSchema,
   MeetingSummarySchema
 } from "./domain.js";
 
@@ -66,5 +67,32 @@ describe("contracts", () => {
     });
 
     expect(daily.participant_updates[0]?.dependencies[0]?.person_or_team).toBe("Victor");
+  });
+
+  it("validates the local structured meeting result sidecar", () => {
+    const data = MeetingNoteDataSchema.parse({
+      schema_version: 1,
+      meeting: {
+        type: "general_meeting",
+        name: "Planejamento",
+        date: "2026-07-24",
+        language: "pt",
+        started_at: "2026-07-24T12:00:00.000Z",
+        ended_at: "2026-07-24T12:30:00.000Z",
+        ordered_participants: ["Ana"],
+        speaker_hints: []
+      },
+      ai_result: {
+        title: "Planejamento",
+        overview: "Entrega organizada.",
+        key_topics: [],
+        decisions: [],
+        action_items: [],
+        next_steps: [],
+        open_questions: []
+      }
+    });
+
+    expect(data.ai_result?.title).toBe("Planejamento");
   });
 });

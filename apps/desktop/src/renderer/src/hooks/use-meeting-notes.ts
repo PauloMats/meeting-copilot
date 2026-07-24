@@ -33,9 +33,11 @@ export function useMeetingNotes() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [transcript, setTranscript] = useState("");
   const [summary, setSummary] = useState<MeetingResult | null>(null);
+  const [summaryExportReady, setSummaryExportReady] = useState(false);
   const [summaryMeetingType, setSummaryMeetingType] = useState<MeetingType>("general_meeting");
   const [error, setError] = useState<string | null>(null);
   const [savedPath, setSavedPath] = useState<string | null>(null);
+  const [savedNoticeVisible, setSavedNoticeVisible] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -104,6 +106,7 @@ export function useMeetingNotes() {
           endedAt
         });
         setSavedPath(saved.filePath);
+        setSavedNoticeVisible(true);
         draftSaved = true;
         await refreshSavedNotes();
       } catch (cause) {
@@ -119,6 +122,7 @@ export function useMeetingNotes() {
         });
         setSummary(response.summary);
         setSummaryMeetingType(response.meetingType);
+        setSummaryExportReady(false);
         const saved = await window.copilot.meetingNotes.save({
           transcript: trimmed,
           summary: response.summary,
@@ -128,6 +132,8 @@ export function useMeetingNotes() {
           endedAt
         });
         setSavedPath(saved.filePath);
+        setSavedNoticeVisible(true);
+        setSummaryExportReady(true);
         await refreshSavedNotes();
         setError(null);
         setState("idle");
@@ -151,8 +157,10 @@ export function useMeetingNotes() {
       setTranscript("");
       transcriptRef.current = "";
       setSummary(null);
+      setSummaryExportReady(false);
       setSummaryMeetingType(meetingSetup.meetingType);
       setSavedPath(null);
+      setSavedNoticeVisible(false);
       setError(null);
       setAudioLevels({
         system: 0,
@@ -246,7 +254,9 @@ export function useMeetingNotes() {
       setRetryingPath(entry.filePath);
       setState("thinking");
       setSummary(null);
+      setSummaryExportReady(false);
       setSavedPath(entry.filePath);
+      setSavedNoticeVisible(false);
       setError(null);
       try {
         const saved = await window.copilot.meetingNotes.read(entry.filePath);
@@ -276,6 +286,7 @@ export function useMeetingNotes() {
         });
         setSummary(response.summary);
         setSummaryMeetingType(response.meetingType);
+        setSummaryExportReady(true);
         await refreshSavedNotes();
         setState("idle");
       } catch (cause) {
@@ -358,9 +369,11 @@ export function useMeetingNotes() {
     settings,
     transcript,
     summary,
+    summaryExportReady,
     summaryMeetingType,
     error,
     savedPath,
+    savedNoticeVisible,
     isRecording,
     isPaused,
     elapsedSeconds,
@@ -374,7 +387,7 @@ export function useMeetingNotes() {
     resumeRecording,
     retrySavedNote,
     refreshSavedNotes,
-    dismissSavedPath: () => setSavedPath(null),
+    dismissSavedPath: () => setSavedNoticeVisible(false),
     cancel,
     updateSettings
   };

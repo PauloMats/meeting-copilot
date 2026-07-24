@@ -49,12 +49,26 @@ describe("MeetingNotesService", () => {
     };
     const completed = await service.save({ ...baseRequest, summary });
     const markdown = await readFile(completed.filePath, "utf8");
+    const structured: unknown = JSON.parse(
+      await readFile(completed.filePath.replace(/\.md$/, ".json"), "utf8")
+    ) as unknown;
 
     expect(completed.filePath).toBe(draft.filePath);
     expect(markdown).toContain("# Release planning");
     expect(markdown).toContain("- [ ] Prepare the release notes");
     expect(markdown).toContain("## Transcript");
     expect(markdown).toContain("- Language: en");
+    expect(structured).toMatchObject({
+      schema_version: 1,
+      meeting: {
+        type: "general_meeting",
+        language: "en",
+        started_at: baseRequest.startedAt
+      },
+      ai_result: {
+        title: "Release planning"
+      }
+    });
     expect(service.isManagedFile(completed.filePath)).toBe(true);
   });
 
@@ -99,18 +113,22 @@ describe("MeetingNotesService", () => {
     expect(notes[0]).toMatchObject({
       title: "Second meeting",
       language: "en",
-      hasSummary: true
+      hasSummary: true,
+      hasStructuredResult: true
     });
     expect(notes[1]).toMatchObject({
       filePath: first.filePath,
       title: "Ata da reunião",
       language: "pt",
       hasSummary: false,
+      hasStructuredResult: false,
       transcriptPreview: "Primeira transcrição sem resumo."
     });
 
     const loaded = await service.read(first.filePath);
     expect(loaded.transcript).toBe("Primeira transcrição sem resumo.");
+    expect(loaded.structuredResult).toBeNull();
+    expect(loaded.dataFilePath).toBe(first.filePath.replace(/\.md$/, ".json"));
   });
 
   it("keeps old saved notes without explicit language compatible", async () => {
@@ -140,6 +158,7 @@ describe("MeetingNotesService", () => {
     expect(loaded).toMatchObject({
       language: "pt",
       hasSummary: false,
+      hasStructuredResult: false,
       transcriptPreview: "Uma transcrição antiga."
     });
 
@@ -169,8 +188,12 @@ describe("MeetingNotesService", () => {
     expect(updated[0]).toMatchObject({
       filePath,
       title: "Resumo recuperado",
-      hasSummary: true
+      hasSummary: true,
+      hasStructuredResult: true
     });
+    const migrated = await service.read(filePath);
+    expect(migrated.structuredResult).toMatchObject({ title: "Resumo recuperado" });
+    expect(migrated.dataFilePath).toBe(filePath.replace(/\.md$/, ".json"));
   });
 
   it("persists daily context and renders participant dependencies", async () => {
@@ -228,8 +251,17 @@ describe("MeetingNotesService", () => {
       meetingName: "Daily Dourado",
       meetingDate: "2026-07-23",
       orderedParticipants: ["Igor", "Rafaela"],
-      hasSummary: true
+      hasSummary: true,
+      hasStructuredResult: true
     });
     expect(loaded.speakerHints[0]?.participant).toBe("Igor");
+    expect(loaded.structuredResult).toMatchObject({
+      participant_updates: [
+        {
+          participant: "Igor",
+          dependencies: [{ person_or_team: "Victor" }]
+        }
+      ]
+    });
   });
 });

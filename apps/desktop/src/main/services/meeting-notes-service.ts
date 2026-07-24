@@ -2,6 +2,7 @@ import type {
   DailySummary,
   LoadedMeetingNote,
   MeetingContext,
+  MeetingNoteData,
   MeetingResult,
   MeetingSummary,
   MeetingType,
@@ -12,6 +13,7 @@ import type {
 import {
   DailySummarySchema,
   MeetingContextSchema,
+  MeetingNoteDataSchema,
   MeetingSummarySchema,
   MeetingTypeSchema
 } from "@meeting-copilot/contracts";
@@ -46,9 +48,15 @@ export class MeetingNotesService {
     filePath: string,
     request: SaveMeetingNoteRequest
   ): Promise<SavedMeetingNote> {
-    const temporaryPath = `${filePath}.tmp`;
-    await writeFile(temporaryPath, renderMeetingNote(request), "utf8");
-    await rename(temporaryPath, filePath);
+    const dataFilePath = dataFilePathFor(filePath);
+    const temporaryMarkdownPath = `${filePath}.tmp`;
+    const temporaryDataPath = `${dataFilePath}.tmp`;
+    await Promise.all([
+      writeFile(temporaryMarkdownPath, renderMeetingNote(request), "utf8"),
+      writeFile(temporaryDataPath, renderStructuredData(request), "utf8")
+    ]);
+    await rename(temporaryMarkdownPath, filePath);
+    await rename(temporaryDataPath, dataFilePath);
     return { filePath };
   }
 
@@ -81,8 +89,12 @@ export class MeetingNotesService {
 
   async read(filePath: string): Promise<LoadedMeetingNote> {
     if (!this.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
-    const [content, fileStats] = await Promise.all([readFile(filePath, "utf8"), stat(filePath)]);
-    return parseMeetingNote(filePath, content, fileStats.mtime.toISOString());
+    const [content, fileStats, structuredData] = await Promise.all([
+      readFile(filePath, "utf8"),
+      stat(filePath),
+      readStructuredData(filePath)
+    ]);
+    return parseMeetingNote(filePath, content, fileStats.mtime.toISOString(), structuredData);
   }
 
   isManagedFile(filePath: string): boolean {
@@ -152,6 +164,24 @@ function renderMetadata(request: SaveMeetingNoteRequest): string {
   })} -->`;
 }
 
+function renderStructuredData(request: SaveMeetingNoteRequest): string {
+  const data = MeetingNoteDataSchema.parse({
+    schema_version: 1,
+    meeting: {
+      type: request.meetingType,
+      name: request.meetingName,
+      date: request.meetingDate,
+      language: request.language,
+      started_at: request.startedAt,
+      ended_at: request.endedAt,
+      ordered_participants: request.orderedParticipants,
+      speaker_hints: request.speakerHints
+    },
+    ai_result: request.summary
+  });
+  return `${JSON.stringify(data, null, 2)}\n`;
+}
+
 function toSavedMeetingNoteEntry(note: LoadedMeetingNote): SavedMeetingNoteEntry {
   return {
     filePath: note.filePath,
@@ -163,14 +193,16 @@ function toSavedMeetingNoteEntry(note: LoadedMeetingNote): SavedMeetingNoteEntry
     startedAt: note.startedAt,
     endedAt: note.endedAt,
     modifiedAt: note.modifiedAt,
-    hasSummary: note.hasSummary
+    hasSummary: note.hasSummary,
+    hasStructuredResult: note.hasStructuredResult
   };
 }
 
 function parseMeetingNote(
   filePath: string,
   content: string,
-  modifiedAt: string
+  modifiedAt: string,
+  structuredData: MeetingNoteData | null
 ): LoadedMeetingNote {
   const title = matchRequired(content, /^#\s+(.+)$/m, "title");
   const startedAt = matchRequired(content, /^- (?:Início|Started):\s*(.+)$/m, "start time");
@@ -188,22 +220,40 @@ function parseMeetingNote(
   const explicitLanguage = /^- (?:Idioma|Language):\s*(\S+)\s*$/m.exec(content)?.[1];
   const language = explicitLanguage ?? (/^## Transcrição\s*$/m.test(content) ? "pt" : "en");
   const metadata = parseMetadata(content);
+  const structuredMeeting = structuredData?.meeting;
   return {
     filePath,
     title,
     transcript,
     transcriptPreview: transcript.replace(/\s+/g, " ").slice(0, 180),
-    meetingType: metadata.meetingType,
-    meetingName: metadata.meetingName,
-    meetingDate: metadata.meetingDate,
-    orderedParticipants: metadata.orderedParticipants,
-    speakerHints: metadata.speakerHints,
-    language,
-    startedAt,
-    endedAt,
+    meetingType: structuredMeeting?.type ?? metadata.meetingType,
+    meetingName: structuredMeeting?.name ?? metadata.meetingName,
+    meetingDate: structuredMeeting?.date ?? metadata.meetingDate,
+    orderedParticipants: structuredMeeting?.ordered_participants ?? metadata.orderedParticipants,
+    speakerHints: structuredMeeting?.speaker_hints ?? metadata.speakerHints,
+    language: structuredMeeting?.language ?? language,
+    startedAt: structuredMeeting?.started_at ?? startedAt,
+    endedAt: structuredMeeting?.ended_at ?? endedAt,
     modifiedAt,
-    hasSummary: /^## (?:Visão geral|Overview)\s*$/m.test(content)
+    hasSummary: /^## (?:Visão geral|Overview)\s*$/m.test(content),
+    hasStructuredResult: structuredData ? structuredData.ai_result !== null : false,
+    structuredResult: structuredData?.ai_result ?? null,
+    dataFilePath: structuredData ? dataFilePathFor(filePath) : null
   };
+}
+
+async function readStructuredData(filePath: string): Promise<MeetingNoteData | null> {
+  try {
+    return MeetingNoteDataSchema.parse(
+      JSON.parse(await readFile(dataFilePathFor(filePath), "utf8"))
+    );
+  } catch {
+    return null;
+  }
+}
+
+function dataFilePathFor(filePath: string): string {
+  return filePath.replace(/\.md$/i, ".json");
 }
 
 function parseMetadata(content: string): NoteMetadata {

@@ -13,6 +13,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { ApiClient } from "./services/api-client.js";
 import { HotkeyService } from "./services/hotkey-service.js";
+import { MeetingExportService } from "./services/meeting-export-service.js";
 import { MeetingNotesService } from "./services/meeting-notes-service.js";
 import { NativeAudioService } from "./services/native-audio-service.js";
 import { RealtimeTranscriptionService } from "./services/realtime-transcription-service.js";
@@ -67,6 +68,7 @@ function registerIpc(
   hotkey: HotkeyService,
   apiClient: ApiClient,
   meetingNotes: MeetingNotesService,
+  meetingExports: MeetingExportService,
   nativeAudio: NativeAudioService
 ): void {
   ipcMain.handle(IPC_CHANNELS.captureStart, () => transcription.start(settingsService.get()));
@@ -113,6 +115,18 @@ function registerIpc(
     if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
     if (!meetingNotes.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
     shell.showItemInFolder(filePath);
+  });
+  ipcMain.handle(IPC_CHANNELS.meetingNotesExportPdf, (_event, filePath: string) => {
+    if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
+    return meetingExports.exportPdf(filePath);
+  });
+  ipcMain.handle(IPC_CHANNELS.meetingNotesExportHtml, (_event, filePath: string) => {
+    if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
+    return meetingExports.exportHtml(filePath);
+  });
+  ipcMain.handle(IPC_CHANNELS.meetingNotesCopyFormatted, (_event, filePath: string) => {
+    if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
+    return meetingExports.copyFormatted(filePath);
   });
   ipcMain.handle(IPC_CHANNELS.overlaySet, (_event, enabled: boolean) => {
     setOverlayMode(enabled);
@@ -391,6 +405,7 @@ async function bootstrap(): Promise<void> {
   currentHotkeyService = hotkey;
 
   const meetingNotes = new MeetingNotesService(app.getPath("documents"));
+  const meetingExports = new MeetingExportService(meetingNotes, () => mainWindow);
   const nativeAudioExecutable = app.isPackaged
     ? join(process.resourcesPath, "native-audio", "MeetingCopilot.AudioCapture.exe")
     : resolve(
@@ -403,7 +418,15 @@ async function bootstrap(): Promise<void> {
     error: (message) => send(IPC_CHANNELS.nativeAudioError, message)
   });
 
-  registerIpc(settingsService, transcription, hotkey, apiClient, meetingNotes, nativeAudio);
+  registerIpc(
+    settingsService,
+    transcription,
+    hotkey,
+    apiClient,
+    meetingNotes,
+    meetingExports,
+    nativeAudio
+  );
   await createWindow();
   const initialSettings = settingsService.get();
   buildApplicationMenu(initialSettings);

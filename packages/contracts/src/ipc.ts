@@ -14,6 +14,7 @@ import {
   type AppSettings,
   type CaptureState,
   type LoadedMeetingNote,
+  type MeetingExportResult,
   type SavedMeetingNoteEntry,
   type SavedMeetingNote
 } from "./domain.js";
@@ -46,6 +47,9 @@ export const IPC_CHANNELS = {
   meetingNotesRead: "meeting-notes:read",
   meetingNotesUpdate: "meeting-notes:update",
   meetingNotesReveal: "meeting-notes:reveal",
+  meetingNotesExportPdf: "meeting-notes:export-pdf",
+  meetingNotesExportHtml: "meeting-notes:export-html",
+  meetingNotesCopyFormatted: "meeting-notes:copy-formatted",
   realtimeToken: "realtime:token",
   overlaySet: "overlay:set",
   windowMinimize: "window:minimize",
@@ -119,6 +123,9 @@ export interface CopilotApi {
     read(filePath: string): Promise<LoadedMeetingNote>;
     update(filePath: string, request: SaveMeetingNoteRequest): Promise<SavedMeetingNote>;
     reveal(filePath: string): Promise<void>;
+    exportPdf(filePath: string): Promise<MeetingExportResult>;
+    exportHtml(filePath: string): Promise<MeetingExportResult>;
+    copyFormatted(filePath: string): Promise<MeetingExportResult>;
   };
   window: {
     setOverlay(enabled: boolean): Promise<void>;

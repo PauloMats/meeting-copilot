@@ -1,5 +1,5 @@
 import {
-  DailySummarySchema,
+  DailyResultSchema,
   MeetingSummarySchema,
   type MeetingResult,
   type MeetingType
@@ -17,7 +17,7 @@ export function MeetingResultCard({
   portuguese: boolean;
 }) {
   return meetingType === "daily" ? (
-    <DailySummaryCard summary={DailySummarySchema.parse(result)} portuguese={portuguese} />
+    <DailySummaryCard summary={DailyResultSchema.parse(result)} portuguese={portuguese} />
   ) : (
     <MeetingSummaryCard summary={MeetingSummarySchema.parse(result)} portuguese={portuguese} />
   );

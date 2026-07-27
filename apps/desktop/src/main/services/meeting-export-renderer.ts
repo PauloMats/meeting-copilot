@@ -1,9 +1,11 @@
 import {
-  DailySummarySchema,
+  DailyResultSchema,
   MeetingSummarySchema,
-  type DailySummary,
+  simplifyDailyResult,
+  type DailyResult,
   type LoadedMeetingNote,
-  type MeetingSummary
+  type MeetingSummary,
+  type SimplifiedDailyUpdate
 } from "@meeting-copilot/contracts";
 
 export interface RenderedMeetingExport {
@@ -19,7 +21,7 @@ export function renderMeetingExport(note: LoadedMeetingNote): RenderedMeetingExp
   const portuguese = note.language.startsWith("pt");
   const reportBody =
     note.meetingType === "daily"
-      ? renderDaily(DailySummarySchema.parse(note.structuredResult), portuguese)
+      ? renderDaily(DailyResultSchema.parse(note.structuredResult), portuguese)
       : renderGeneral(MeetingSummarySchema.parse(note.structuredResult), portuguese);
   const metadata = renderMetadata(note, portuguese);
   const body = `
@@ -62,7 +64,7 @@ export function renderMeetingExport(note: LoadedMeetingNote): RenderedMeetingExp
     fragmentHtml: `<style>${styles}</style>${body}`,
     plainText:
       note.meetingType === "daily"
-        ? renderDailyText(DailySummarySchema.parse(note.structuredResult), note, portuguese)
+        ? renderDailyText(DailyResultSchema.parse(note.structuredResult), note, portuguese)
         : renderGeneralText(MeetingSummarySchema.parse(note.structuredResult), note, portuguese)
   };
 }
@@ -168,90 +170,65 @@ function renderTopics(summary: MeetingSummary, portuguese: boolean): string {
   </section>`;
 }
 
-function renderDaily(summary: DailySummary, portuguese: boolean): string {
-  return `
-    <section class="overview-card">
-      <p class="section-label">${portuguese ? "STATUS GERAL DO TIME" : "TEAM STATUS"}</p>
-      <p>${escapeHtml(summary.overview)}</p>
-    </section>
-    <section class="report-section">
-      <div class="section-heading">
-        <span class="section-number">${String(summary.participant_updates.length).padStart(2, "0")}</span>
-        <h2>${portuguese ? "Atualizações individuais" : "Participant updates"}</h2>
-      </div>
-      <div class="participant-list">
-        ${summary.participant_updates
-          .map((update) => renderParticipant(update, portuguese))
-          .join("")}
-      </div>
-    </section>
-    <div class="two-column">
-      ${renderStringSection(
-        portuguese ? "Bloqueios do time" : "Team blockers",
-        summary.team_blockers,
-        "warning"
-      )}
-      ${renderStringSection(
-        portuguese ? "Próximos passos do time" : "Team next steps",
-        summary.team_next_steps
-      )}
-      ${renderStringSection(
-        portuguese ? "Participantes ausentes" : "Absent participants",
-        summary.absent_participants
-      )}
+function renderDaily(summary: DailyResult, portuguese: boolean): string {
+  const report = simplifyDailyResult(summary);
+  return `<section class="report-section simple-daily-report">
+    <div class="participant-list">
+      ${report.participantUpdates.map((update) => renderParticipant(update, portuguese)).join("")}
     </div>
-    ${renderUnresolved(summary, portuguese)}`;
+  </section>`;
 }
 
-function renderParticipant(
-  update: DailySummary["participant_updates"][number],
-  portuguese: boolean
-): string {
+function renderParticipant(update: SimplifiedDailyUpdate, portuguese: boolean): string {
   const participant =
     update.participant ||
     (portuguese ? "Participante não identificado" : "Unidentified participant");
-  return `<article class="participant-card">
+  return `<article class="participant-card simple-participant-card">
     <header>
       <span class="avatar">${escapeHtml(participant.slice(0, 1).toUpperCase() || "?")}</span>
-      <div><h3>${escapeHtml(participant)}</h3><p>${escapeHtml(update.summary)}</p></div>
-      <span class="confidence confidence-${update.attribution_confidence}">${escapeHtml(
-        confidenceLabel(update.attribution_confidence, portuguese)
-      )}</span>
+      <h2>${escapeHtml(participant)}</h2>
     </header>
-    <div class="status-grid">
-      ${renderCompactList(portuguese ? "Concluído" : "Completed", update.completed, "success")}
-      ${renderCompactList(
-        portuguese ? "Em andamento" : "In progress",
-        update.in_progress,
-        "progress"
-      )}
-      ${renderCompactList(portuguese ? "Bloqueios" : "Blockers", update.blockers, "danger")}
-      ${renderCompactList(portuguese ? "Próximos passos" : "Next steps", update.next_steps, "next")}
-    </div>
+    <ul class="daily-update-list">${update.updates
+      .map((item) => `<li>${escapeHtml(item)}</li>`)
+      .join("")}</ul>
+    ${renderDailyHighlight("blocker", update.blockers, portuguese)}
+    ${renderDailyHighlight("next", update.nextSteps, portuguese)}
     ${
-      update.dependencies.length
-        ? `<div class="dependencies"><h4>${portuguese ? "DEPENDÊNCIAS" : "DEPENDENCIES"}</h4>${update.dependencies
-            .map(
-              (item) =>
-                `<div><b>${portuguese ? "Aguardando" : "Waiting for"}: ${escapeHtml(
-                  item.person_or_team || (portuguese ? "Não informado" : "Not specified")
-                )}</b><span>${escapeHtml(item.dependency)}</span></div>`
-            )
-            .join("")}</div>`
+      update.possibleParticipants.length
+        ? `<p class="daily-highlight possible"><b>${
+            portuguese ? "Possíveis participantes:" : "Possible participants:"
+          }</b> ${escapeHtml(update.possibleParticipants.join(", "))}</p>`
         : ""
     }
   </article>`;
 }
 
-function renderCompactList(
-  title: string,
+function renderDailyHighlight(
+  kind: "blocker" | "next",
   items: string[],
-  tone: "success" | "progress" | "danger" | "next"
+  portuguese: boolean
 ): string {
   if (!items.length) return "";
-  return `<section class="compact-list tone-${tone}"><h4>${escapeHtml(title)}</h4><ul>${items
-    .map((item) => `<li>${escapeHtml(item)}</li>`)
-    .join("")}</ul></section>`;
+  const plural = items.length > 1;
+  const label =
+    kind === "blocker"
+      ? portuguese
+        ? plural
+          ? "Bloqueios:"
+          : "Bloqueio:"
+        : plural
+          ? "Blockers:"
+          : "Blocker:"
+      : portuguese
+        ? plural
+          ? "Próximos passos:"
+          : "Próximo passo:"
+        : plural
+          ? "Next steps:"
+          : "Next step:";
+  return `<p class="daily-highlight ${kind}"><b>${label}</b> ${items
+    .map(escapeHtml)
+    .join(" ")}</p>`;
 }
 
 function renderStringSection(title: string, items: string[], className = ""): string {
@@ -259,27 +236,6 @@ function renderStringSection(title: string, items: string[], className = ""): st
   return `<section class="list-card ${className}"><h2>${escapeHtml(title)}</h2><ul>${items
     .map((item) => `<li>${escapeHtml(item)}</li>`)
     .join("")}</ul></section>`;
-}
-
-function renderUnresolved(summary: DailySummary, portuguese: boolean): string {
-  if (!summary.unresolved_attributions.length) return "";
-  return `<section class="report-section unresolved">
-    <div class="section-heading"><h2>${
-      portuguese ? "Atribuições não resolvidas" : "Unresolved attributions"
-    }</h2></div>
-    ${summary.unresolved_attributions
-      .map(
-        (item) =>
-          `<article><p>${escapeHtml(item.summary)}</p>${
-            item.possible_participants.length
-              ? `<small>${portuguese ? "Possíveis participantes" : "Possible participants"}: ${escapeHtml(
-                  item.possible_participants.join(", ")
-                )}</small>`
-              : ""
-          }</article>`
-      )
-      .join("")}
-  </section>`;
 }
 
 function renderGeneralText(
@@ -317,57 +273,55 @@ function renderGeneralText(
 }
 
 function renderDailyText(
-  summary: DailySummary,
+  summary: DailyResult,
   note: LoadedMeetingNote,
   portuguese: boolean
 ): string {
-  const sections = [summary.title, metadataText(note, portuguese), "", summary.overview];
-  for (const update of summary.participant_updates) {
+  const report = simplifyDailyResult(summary);
+  const sections = [report.title, metadataText(note, portuguese)];
+  for (const update of report.participantUpdates) {
     sections.push(
       "",
       update.participant ||
         (portuguese ? "Participante não identificado" : "Unidentified participant")
     );
-    sections.push(update.summary);
-    appendTextItems(sections, portuguese ? "Concluído" : "Completed", update.completed);
-    appendTextItems(sections, portuguese ? "Em andamento" : "In progress", update.in_progress);
-    appendTextItems(sections, portuguese ? "Bloqueios" : "Blockers", update.blockers);
-    appendTextItems(
-      sections,
-      portuguese ? "Dependências" : "Dependencies",
-      update.dependencies.map(
-        (item) =>
-          `${portuguese ? "Aguardando" : "Waiting for"} ${item.person_or_team}: ${item.dependency}`
-      )
-    );
-    appendTextItems(sections, portuguese ? "Próximos passos" : "Next steps", update.next_steps);
+    sections.push(...update.updates.map((item) => `• ${item}`));
+    appendDailyTextHighlight(sections, "blocker", update.blockers, portuguese);
+    appendDailyTextHighlight(sections, "next", update.nextSteps, portuguese);
+    if (update.possibleParticipants.length) {
+      sections.push(
+        `${portuguese ? "Possíveis participantes" : "Possible participants"}: ${update.possibleParticipants.join(", ")}`
+      );
+    }
   }
-  appendTextItems(
-    sections,
-    portuguese ? "BLOQUEIOS DO TIME" : "TEAM BLOCKERS",
-    summary.team_blockers
-  );
-  appendTextItems(
-    sections,
-    portuguese ? "PRÓXIMOS PASSOS DO TIME" : "TEAM NEXT STEPS",
-    summary.team_next_steps
-  );
-  appendTextItems(
-    sections,
-    portuguese ? "PARTICIPANTES AUSENTES" : "ABSENT PARTICIPANTS",
-    summary.absent_participants
-  );
-  appendTextItems(
-    sections,
-    portuguese ? "ATRIBUIÇÕES NÃO RESOLVIDAS" : "UNRESOLVED ATTRIBUTIONS",
-    summary.unresolved_attributions.map((item) => {
-      const possibleParticipants = item.possible_participants.length
-        ? ` (${portuguese ? "possíveis participantes" : "possible participants"}: ${item.possible_participants.join(", ")})`
-        : "";
-      return `${item.summary}${possibleParticipants}`;
-    })
-  );
   return sections.join("\n");
+}
+
+function appendDailyTextHighlight(
+  sections: string[],
+  kind: "blocker" | "next",
+  items: string[],
+  portuguese: boolean
+): void {
+  if (!items.length) return;
+  const plural = items.length > 1;
+  const label =
+    kind === "blocker"
+      ? portuguese
+        ? plural
+          ? "Bloqueios"
+          : "Bloqueio"
+        : plural
+          ? "Blockers"
+          : "Blocker"
+      : portuguese
+        ? plural
+          ? "Próximos passos"
+          : "Próximo passo"
+        : plural
+          ? "Next steps"
+          : "Next step";
+  sections.push(`${label}: ${items.join(" ")}`);
 }
 
 function appendTextItems(sections: string[], title: string, items: string[]): void {
@@ -388,11 +342,6 @@ function metadataText(note: LoadedMeetingNote, portuguese: boolean): string {
 function priorityLabel(priority: "high" | "medium" | "low", portuguese: boolean): string {
   if (!portuguese) return priority;
   return { high: "prioridade alta", medium: "prioridade média", low: "prioridade baixa" }[priority];
-}
-
-function confidenceLabel(confidence: "high" | "medium" | "low", portuguese: boolean): string {
-  if (!portuguese) return `${confidence} confidence`;
-  return { high: "alta confiança", medium: "média confiança", low: "baixa confiança" }[confidence];
 }
 
 function formatDuration(startedAt: string, endedAt: string): string {
@@ -479,6 +428,16 @@ function exportStyles(): string {
     .participant-card > header { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 10px; }
     .participant-card header p { margin: 3px 0 0; color: #66788d; font-size: 9.5px; }
     .avatar { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 9px; color: #fff; background: #168a76; font-size: 10px; font-weight: 800; }
+    .simple-daily-report { margin-top: 18px; }
+    .simple-participant-card { padding: 18px 2px; border: 0; border-bottom: 1px solid #dce3ea; border-radius: 0; }
+    .simple-participant-card > header { grid-template-columns: auto 1fr; align-items: center; }
+    .simple-participant-card h2 { margin: 0; color: #172033; font-size: 15px; }
+    .daily-update-list { margin: 11px 0 0; padding-left: 19px; }
+    .daily-update-list li { margin: 5px 0; color: #485b71; }
+    .daily-highlight { margin: 10px 0 0; color: #485b71; font-size: 9.5px; }
+    .daily-highlight.blocker b { color: #ad3448; }
+    .daily-highlight.next b { color: #137360; }
+    .daily-highlight.possible b { color: #8a6218; }
     .status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
     .compact-list { padding: 10px 11px; border-left: 3px solid #8fa0b5; border-radius: 6px; background: #f6f8fa; }
     .compact-list h4, .dependencies h4 { margin: 0; color: #607287; font-size: 7.5px; letter-spacing: .08em; }

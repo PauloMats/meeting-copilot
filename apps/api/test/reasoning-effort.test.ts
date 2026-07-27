@@ -33,11 +33,7 @@ const generalMeetingContext = {
 
 const dailySummary: DailySummary = {
   title: "Daily",
-  overview: "The team shared status updates.",
   participant_updates: [],
-  team_blockers: [],
-  team_next_steps: [],
-  absent_participants: [],
   unresolved_attributions: []
 };
 
@@ -154,6 +150,16 @@ describe("basic reasoning effort", () => {
     });
 
     expect(parse).toHaveBeenCalledTimes(2);
+    expect(parse.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        input: expect.arrayContaining([
+          expect.objectContaining({
+            role: "system",
+            content: expect.stringContaining("small set of direct, self-contained update bullets")
+          })
+        ])
+      })
+    );
     const retryRequest = parse.mock.calls[1]?.[0];
     expect(retryRequest).toEqual(
       expect.objectContaining({

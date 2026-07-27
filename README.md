@@ -19,7 +19,7 @@ decisions, action items, owners, deadlines, next steps, and open questions.
 - Home screen for choosing between Meeting Copilot and Smart Meeting Notes.
 - Click-to-start/click-to-finish meeting transcription with an elapsed-time indicator.
 - Explicit General Meeting or Daily / Team Status processing before recording.
-- A person-by-person Daily report with attribution confidence, blockers, dependencies, and next steps.
+- A compact person-by-person Daily report with concise updates, blockers, and next steps.
 - Optional ordered participants and speaker hints to improve Daily attribution.
 - Dedicated structured AI prompts that do not invent owners, deadlines, decisions, or updates.
 - Automatic Markdown notes under the user's `Documents/Meeting Copilot` directory.

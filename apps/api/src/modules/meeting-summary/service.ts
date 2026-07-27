@@ -1,6 +1,5 @@
 import {
   DailySummarySchema,
-  MeetingResultSchema,
   MeetingSummarySchema,
   type IntelligenceLevel,
   type MeetingSummaryRequest,
@@ -17,17 +16,18 @@ const GENERAL_MEETING_PROMPT =
   "Never invent an owner, deadline, decision, or fact. Use an empty string when an action owner or due date was not stated. " +
   "Consolidate duplicates, ignore transcription noise and small talk, and keep every text field concise. ";
 
-const DAILY_PROMPT = `You transform software team daily stand-up transcripts into accurate, concise, person-by-person status reports.
+const DAILY_PROMPT = `You transform software team daily stand-up transcripts into a short, accurate, person-by-person Daily report.
 
 Write in the language specified by \`requested_language\`. If it is not provided, use the same language as the transcript.
 
-This is a DAILY STATUS REPORT, not general meeting minutes.
+This is a compact DAILY STATUS REPORT, not general meeting minutes.
 
 Your primary goals are:
 
 1. Correctly attribute each update to the person who said it.
-2. Summarize each participant's work, current progress, blockers, dependencies, and next steps.
-3. Preserve technical context without turning the daily into a long meeting summary.
+2. Give each participant a small set of direct, self-contained update bullets.
+3. Highlight only explicit blockers and explicit next steps.
+4. Preserve useful technical names and context without adding separate overview or team sections.
 
 The input may contain:
 
@@ -47,39 +47,42 @@ Speaker attribution rules:
 * Never merge updates from different speakers.
 * A person mentioned inside an update is not necessarily the current speaker.
 * A person mentioned as a dependency must not automatically receive an action item.
-* If attribution remains uncertain, use an empty participant name and record the segment in \`unresolved_attributions\`.
+* If attribution remains uncertain, do not create a participant update. Record the segment only in \`unresolved_attributions\`.
 * Set \`attribution_confidence\` to \`high\`, \`medium\`, or \`low\` according to the available evidence.
 
 For each identified participant, extract only information explicitly supported by the transcript:
 
-* \`summary\`: concise overview of the participant's update.
-* \`completed\`: work explicitly described as finished.
-* \`in_progress\`: work currently being performed.
-* \`blockers\`: issues preventing or delaying progress.
-* \`dependencies\`: work, approval, route, PR, environment, response, or correction expected from another person or team.
-* \`next_steps\`: actions the participant explicitly said they will perform next.
+* \`updates\`: two to six short factual sentences covering relevant completed work, current work, discoveries, reported problems, and useful technical context.
+* \`blockers\`: zero to two concise sentences describing only issues or dependencies that currently prevent or delay the participant.
+* \`next_steps\`: zero to two concise sentences describing only actions the participant explicitly said they will perform next.
 
-Do not force information into a category. Use an empty array when a category was not mentioned.
+Each item must read naturally as a standalone sentence. Use an empty array when blockers or next steps were not mentioned.
+
+The title should normally follow this pattern when the information is available:
+\`<meeting_name> — <meeting_date formatted for requested_language>\`.
+
+The final user-facing presentation will be:
+
+\`# title\`
+\`## participant\`
+bullet list from \`updates\`
+an optional bold blocker line
+an optional bold next-step line
+
+Therefore, keep the result compact and do not create an overview, team summary, absent-participant section, category cards, recommendations, or general meeting topics.
 
 Do not:
 
-* Organize the result primarily by general meeting topics.
-* Invent priorities.
 * Invent deadlines.
-* Invent owners.
-* Invent decisions.
-* Invent open questions.
-* Convert every mentioned activity into an action item.
 * Treat speculation as fact.
+* Convert every mentioned activity into a next step.
+* Repeat the same sentence in multiple fields.
 * Add recommendations that were not discussed.
-* Repeat the same information in multiple fields.
 * Include greetings, farewells, jokes, transcription noise, or irrelevant small talk.
 
-When a participant says they are waiting for another person, record it as a dependency or blocker for the speaker. Do not create a separate participant update for the person being waited on unless that person also spoke.
+When a participant says they are waiting for another person, summarize it as a blocker for the speaker. Do not create a separate participant update for the person being waited on unless that person also spoke.
 
 Preserve names of people, products, systems, tickets, routes, endpoints, pull requests, environments, and technical terms whenever they are reasonably clear.
-
-Keep every text field concise. Prefer one to four short items per field.
 
 Return only valid structured JSON matching the required schema.`;
 
@@ -91,18 +94,15 @@ Preserve:
 
 Correct speaker attribution.
 Explicit blockers.
-Explicit dependencies.
 Explicit next steps.
 Important technical terms.
-Explicitly absent participants.
 
 Reduce verbosity by:
 
-Limiting each participant summary to one sentence.
-Limiting completed, in-progress, blockers, dependencies, and next steps to four items each.
-Limiting team blockers and team next steps to six items each.
+Limiting each participant to six update bullets.
+Limiting blockers and next steps to two items each.
 Removing repeated context.
-Omitting minor details before removing explicit commitments or blockers.
+Omitting minor details before removing explicit next steps or blockers.
 
 Return only valid JSON. Do not include Markdown or explanatory text.`;
 
@@ -129,7 +129,10 @@ export class MeetingSummaryService {
     }
 
     return {
-      summary: MeetingResultSchema.parse(parsed),
+      summary:
+        request.meetingType === "daily"
+          ? DailySummarySchema.parse(parsed)
+          : MeetingSummarySchema.parse(parsed),
       meetingType: request.meetingType,
       model,
       intelligenceLevel: request.intelligenceLevel

@@ -1623,6 +1623,63 @@ footer span::before {
   line-height: 1.65;
 }
 
+.daily-summary-simple .summary-title {
+  margin-bottom: 8px;
+}
+
+.simple-daily-list {
+  margin-top: 20px;
+  border-top: 1px solid #263449;
+}
+
+.simple-daily-participant {
+  padding: 20px 2px;
+  border-bottom: 1px solid #263449;
+}
+
+.simple-daily-participant h3 {
+  margin: 0;
+  color: #eff6ff;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.simple-daily-participant ul {
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.simple-daily-participant li {
+  margin: 7px 0;
+  color: #b7c5d6;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.simple-daily-highlight,
+.daily-possible-participants {
+  margin: 12px 0 0;
+  color: #aebdd0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.simple-daily-highlight strong {
+  color: #e7eef8;
+}
+
+.simple-daily-highlight.is-blocker strong {
+  color: #ff99a8;
+}
+
+.simple-daily-highlight.is-next strong {
+  color: #7ce3d0;
+}
+
+.daily-possible-participants strong {
+  color: #efc374;
+}
+
 .summary-section {
   padding: 18px 0;
   border-top: 1px solid #202b3b;

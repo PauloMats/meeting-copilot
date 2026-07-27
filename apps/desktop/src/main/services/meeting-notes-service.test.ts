@@ -203,27 +203,18 @@ describe("MeetingNotesService", () => {
       transcript: "Igor está aguardando uma rota do Victor.",
       summary: {
         title: "Daily Dourado — 23/07/2026",
-        overview: "O time possui uma dependência.",
         participant_updates: [
           {
             participant: "Igor",
             attribution_confidence: "high",
-            summary: "Aguarda uma rota para finalizar a tarefa.",
-            completed: [],
-            in_progress: [],
-            blockers: ["A rota ainda não está disponível."],
-            dependencies: [
-              {
-                person_or_team: "Victor",
-                dependency: "Disponibilização da rota de representantes."
-              }
+            updates: [
+              "Está ajustando os testes da funcionalidade de procura.",
+              "O problema já foi repassado ao Victor."
             ],
+            blockers: ["A rota padrão de procura está com erro."],
             next_steps: ["Finalizar a tarefa após a liberação da rota."]
           }
         ],
-        team_blockers: [],
-        team_next_steps: [],
-        absent_participants: ["Lúcio"],
         unresolved_attributions: []
       },
       meetingType: "daily",
@@ -242,8 +233,12 @@ describe("MeetingNotesService", () => {
     });
 
     const markdown = await readFile(saved.filePath, "utf8");
-    expect(markdown).toContain("## Atualizações por participante");
-    expect(markdown).toContain("**Aguardando: Victor**");
+    expect(markdown).toContain("## Igor");
+    expect(markdown).toContain("* Está ajustando os testes da funcionalidade de procura.");
+    expect(markdown).toContain("**Bloqueio:** A rota padrão de procura está com erro.");
+    expect(markdown).toContain("**Próximo passo:** Finalizar a tarefa após a liberação da rota.");
+    expect(markdown).not.toContain("Confiança da atribuição");
+    expect(markdown).not.toContain("## Visão geral");
 
     const loaded = await service.read(saved.filePath);
     expect(loaded).toMatchObject({
@@ -259,7 +254,10 @@ describe("MeetingNotesService", () => {
       participant_updates: [
         {
           participant: "Igor",
-          dependencies: [{ person_or_team: "Victor" }]
+          updates: [
+            "Está ajustando os testes da funcionalidade de procura.",
+            "O problema já foi repassado ao Victor."
+          ]
         }
       ]
     });

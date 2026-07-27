@@ -57,27 +57,19 @@ describe("renderMeetingExport", () => {
   it("renders participant updates and dependencies for a daily", () => {
     const summary: DailySummary = {
       title: "Daily Dourado — 24/07/2026",
-      overview: "O time avançou e possui uma dependência.",
       participant_updates: [
         {
           participant: "Igor",
           attribution_confidence: "high",
-          summary: "Está finalizando o dashboard.",
-          completed: ["Corrigiu o filtro."],
-          in_progress: ["Finaliza os testes."],
-          blockers: [],
-          dependencies: [
-            {
-              person_or_team: "Victor",
-              dependency: "Disponibilizar a rota de representantes."
-            }
+          updates: [
+            "Está finalizando o dashboard.",
+            "Corrigiu o filtro.",
+            "O problema já foi repassado ao Victor."
           ],
+          blockers: ["A rota padrão de procura está com erro."],
           next_steps: ["Abrir o PR."]
         }
       ],
-      team_blockers: [],
-      team_next_steps: ["Validar a entrega."],
-      absent_participants: ["Lúcio"],
       unresolved_attributions: []
     };
 
@@ -87,11 +79,13 @@ describe("renderMeetingExport", () => {
       structuredResult: summary
     });
 
-    expect(rendered.documentHtml).toContain("Atualizações individuais");
     expect(rendered.documentHtml).toContain("Igor");
-    expect(rendered.documentHtml).toContain("Disponibilizar a rota de representantes.");
-    expect(rendered.plainText).toContain("Aguardando Victor");
-    expect(rendered.plainText).toContain("Lúcio");
+    expect(rendered.documentHtml).toContain("O problema já foi repassado ao Victor.");
+    expect(rendered.documentHtml).toContain("<b>Bloqueio:</b>");
+    expect(rendered.documentHtml).toContain("<b>Próximo passo:</b>");
+    expect(rendered.documentHtml).not.toContain("STATUS GERAL DO TIME");
+    expect(rendered.plainText).toContain("Bloqueio: A rota padrão de procura está com erro.");
+    expect(rendered.plainText).toContain("Próximo passo: Abrir o PR.");
   });
 
   it("refuses to export legacy notes without a structured result", () => {

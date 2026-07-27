@@ -1,5 +1,5 @@
 import type {
-  DailySummary,
+  DailyResult,
   LoadedMeetingNote,
   MeetingContext,
   MeetingNoteData,
@@ -11,11 +11,12 @@ import type {
   SavedMeetingNote
 } from "@meeting-copilot/contracts";
 import {
-  DailySummarySchema,
+  DailyResultSchema,
   MeetingContextSchema,
   MeetingNoteDataSchema,
   MeetingSummarySchema,
-  MeetingTypeSchema
+  MeetingTypeSchema,
+  simplifyDailyResult
 } from "@meeting-copilot/contracts";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
@@ -235,7 +236,9 @@ function parseMeetingNote(
     startedAt: structuredMeeting?.started_at ?? startedAt,
     endedAt: structuredMeeting?.ended_at ?? endedAt,
     modifiedAt,
-    hasSummary: /^## (?:Visão geral|Overview)\s*$/m.test(content),
+    hasSummary: structuredData
+      ? structuredData.ai_result !== null
+      : /^## (?:Visão geral|Overview)\s*$/m.test(content),
     hasStructuredResult: structuredData ? structuredData.ai_result !== null : false,
     structuredResult: structuredData?.ai_result ?? null,
     dataFilePath: structuredData ? dataFilePathFor(filePath) : null
@@ -287,7 +290,7 @@ function renderResult(
   portuguese: boolean
 ): string {
   return meetingType === "daily"
-    ? renderDailySummary(DailySummarySchema.parse(result), portuguese)
+    ? renderDailySummary(DailyResultSchema.parse(result), portuguese)
     : renderSummary(MeetingSummarySchema.parse(result), portuguese);
 }
 
@@ -342,86 +345,55 @@ function renderSummary(summary: MeetingSummary, portuguese: boolean): string {
   return sections.join("\n");
 }
 
-function renderDailySummary(summary: DailySummary, portuguese: boolean): string {
-  const sections: string[] = [
-    portuguese ? "## Visão geral" : "## Overview",
-    "",
-    summary.overview.trim()
-  ];
+function renderDailySummary(summary: DailyResult, portuguese: boolean): string {
+  const report = simplifyDailyResult(summary);
+  const sections: string[] = [];
 
-  if (summary.participant_updates.length) {
+  for (const [index, update] of report.participantUpdates.entries()) {
+    if (index > 0) sections.push("", "---", "");
     sections.push(
+      `## ${update.participant || (portuguese ? "Participante não identificado" : "Unidentified participant")}`,
       "",
-      portuguese ? "## Atualizações por participante" : "## Participant updates",
-      ""
+      ...update.updates.map((item) => `* ${item}`)
     );
-    for (const update of summary.participant_updates) {
+    if (update.possibleParticipants.length) {
       sections.push(
-        `### ${update.participant || (portuguese ? "Participante não identificado" : "Unidentified participant")}`,
         "",
-        `_${portuguese ? "Confiança da atribuição" : "Attribution confidence"}: ${confidenceLabel(update.attribution_confidence, portuguese)}_`,
-        "",
-        update.summary.trim()
+        `**${portuguese ? "Possíveis participantes" : "Possible participants"}:** ${update.possibleParticipants.join(", ")}`
       );
-      appendList(sections, portuguese ? "Concluído" : "Completed", update.completed, 4);
-      appendList(sections, portuguese ? "Em andamento" : "In progress", update.in_progress, 4);
-      appendList(sections, portuguese ? "Bloqueios" : "Blockers", update.blockers, 4);
-      appendDependencies(sections, update.dependencies, portuguese);
-      appendList(sections, portuguese ? "Próximos passos" : "Next steps", update.next_steps, 4);
-      sections.push("");
     }
-    sections.pop();
-  }
-
-  appendList(sections, portuguese ? "Bloqueios do time" : "Team blockers", summary.team_blockers);
-  appendList(
-    sections,
-    portuguese ? "Próximos passos do time" : "Team next steps",
-    summary.team_next_steps
-  );
-  appendList(
-    sections,
-    portuguese ? "Participantes ausentes" : "Absent participants",
-    summary.absent_participants
-  );
-
-  if (summary.unresolved_attributions.length) {
-    sections.push(
-      "",
-      portuguese ? "## Atribuições não resolvidas" : "## Unresolved attributions",
-      ""
-    );
-    for (const item of summary.unresolved_attributions) {
-      const possible = item.possible_participants.length
-        ? ` (${portuguese ? "possíveis" : "possible"}: ${item.possible_participants.join(", ")})`
-        : "";
-      sections.push(`- ${item.summary}${possible}`);
-    }
+    appendDailyHighlight(sections, "blocker", update.blockers, portuguese);
+    appendDailyHighlight(sections, "next", update.nextSteps, portuguese);
   }
 
   return sections.join("\n");
 }
 
-function appendDependencies(
+function appendDailyHighlight(
   sections: string[],
-  dependencies: DailySummary["participant_updates"][number]["dependencies"],
+  kind: "blocker" | "next",
+  items: string[],
   portuguese: boolean
 ): void {
-  if (!dependencies.length) return;
-  sections.push("", `#### ${portuguese ? "Dependências" : "Dependencies"}`, "");
-  for (const item of dependencies) {
-    sections.push(
-      `- **${portuguese ? "Aguardando" : "Waiting for"}: ${item.person_or_team || (portuguese ? "não informado" : "not specified")}** — ${item.dependency}`
-    );
-  }
-}
-
-function confidenceLabel(
-  confidence: DailySummary["participant_updates"][number]["attribution_confidence"],
-  portuguese: boolean
-): string {
-  if (!portuguese) return confidence;
-  return { high: "alta", medium: "média", low: "baixa" }[confidence];
+  if (!items.length) return;
+  const plural = items.length > 1;
+  const label =
+    kind === "blocker"
+      ? portuguese
+        ? plural
+          ? "Bloqueios"
+          : "Bloqueio"
+        : plural
+          ? "Blockers"
+          : "Blocker"
+      : portuguese
+        ? plural
+          ? "Próximos passos"
+          : "Próximo passo"
+        : plural
+          ? "Next steps"
+          : "Next step";
+  sections.push("", `**${label}:** ${items.join(" ")}`);
 }
 
 function appendList(sections: string[], title: string, items: string[], headingLevel = 2): void {

@@ -83,7 +83,7 @@ export const MeetingSummarySchema = z.object({
 });
 export type MeetingSummary = z.infer<typeof MeetingSummarySchema>;
 
-export const DailySummarySchema = z.object({
+export const LegacyDailySummarySchema = z.object({
   title: z.string(),
   overview: z.string(),
   participant_updates: z
@@ -119,10 +119,95 @@ export const DailySummarySchema = z.object({
     )
     .max(10)
 });
-export type DailySummary = z.infer<typeof DailySummarySchema>;
 
-export const MeetingResultSchema = z.union([MeetingSummarySchema, DailySummarySchema]);
+export const DailySummarySchema = z.object({
+  title: z.string(),
+  participant_updates: z
+    .array(
+      z.object({
+        participant: z.string(),
+        attribution_confidence: ConfidenceSchema,
+        updates: z.array(z.string()).max(8),
+        blockers: z.array(z.string()).max(4),
+        next_steps: z.array(z.string()).max(4)
+      })
+    )
+    .max(30),
+  unresolved_attributions: z
+    .array(
+      z.object({
+        summary: z.string(),
+        possible_participants: z.array(z.string()).max(30)
+      })
+    )
+    .max(10)
+});
+export type DailySummary = z.infer<typeof DailySummarySchema>;
+export type LegacyDailySummary = z.infer<typeof LegacyDailySummarySchema>;
+export const DailyResultSchema = z.union([DailySummarySchema, LegacyDailySummarySchema]);
+export type DailyResult = z.infer<typeof DailyResultSchema>;
+
+export const MeetingResultSchema = z.union([
+  MeetingSummarySchema,
+  DailySummarySchema,
+  LegacyDailySummarySchema
+]);
 export type MeetingResult = z.infer<typeof MeetingResultSchema>;
+
+export interface SimplifiedDailyUpdate {
+  participant: string;
+  updates: string[];
+  blockers: string[];
+  nextSteps: string[];
+  possibleParticipants: string[];
+}
+
+export interface SimplifiedDailyReport {
+  title: string;
+  participantUpdates: SimplifiedDailyUpdate[];
+}
+
+export function simplifyDailyResult(result: DailyResult): SimplifiedDailyReport {
+  const participantUpdates =
+    "overview" in result
+      ? result.participant_updates.map((update) => ({
+          participant: update.participant,
+          updates: uniqueNonEmpty([update.summary, ...update.completed, ...update.in_progress]),
+          blockers: uniqueNonEmpty([
+            ...update.blockers,
+            ...update.dependencies.map((dependency) =>
+              [dependency.person_or_team, dependency.dependency].filter(Boolean).join(": ")
+            )
+          ]),
+          nextSteps: uniqueNonEmpty(update.next_steps),
+          possibleParticipants: []
+        }))
+      : result.participant_updates.map((update) => ({
+          participant: update.participant,
+          updates: uniqueNonEmpty(update.updates),
+          blockers: uniqueNonEmpty(update.blockers),
+          nextSteps: uniqueNonEmpty(update.next_steps),
+          possibleParticipants: []
+        }));
+
+  return {
+    title: result.title,
+    participantUpdates: [
+      ...participantUpdates,
+      ...result.unresolved_attributions.map((item) => ({
+        participant: "",
+        updates: uniqueNonEmpty([item.summary]),
+        blockers: [],
+        nextSteps: [],
+        possibleParticipants: item.possible_participants
+      }))
+    ]
+  };
+}
+
+function uniqueNonEmpty(items: string[]): string[] {
+  return [...new Set(items.map((item) => item.trim()).filter(Boolean))];
+}
 
 export const MeetingNoteDataSchema = z.object({
   schema_version: z.literal(1),

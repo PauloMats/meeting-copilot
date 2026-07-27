@@ -3,8 +3,10 @@ import {
   AnswerSchema,
   DailySummarySchema,
   DEFAULT_SETTINGS,
+  LegacyDailySummarySchema,
   MeetingNoteDataSchema,
-  MeetingSummarySchema
+  MeetingSummarySchema,
+  simplifyDailyResult
 } from "./domain.js";
 
 describe("contracts", () => {
@@ -42,31 +44,54 @@ describe("contracts", () => {
   it("validates person-by-person daily status reports", () => {
     const daily = DailySummarySchema.parse({
       title: "Daily Dourado — 23/07/2026",
-      overview: "The team reported progress and one dependency.",
       participant_updates: [
         {
           participant: "Igor",
           attribution_confidence: "high",
-          summary: "Igor is waiting for a representatives route.",
-          completed: [],
-          in_progress: ["Resolve a dashboard issue."],
+          updates: ["Está ajustando os testes da funcionalidade de procura."],
           blockers: ["The representatives route is unavailable."],
+          next_steps: ["Finish the task after the route is available."]
+        }
+      ],
+      unresolved_attributions: []
+    });
+
+    expect(daily.participant_updates[0]?.updates[0]).toContain("testes");
+  });
+
+  it("keeps rich v0.5 daily results compatible with the simplified presentation", () => {
+    const legacy = LegacyDailySummarySchema.parse({
+      title: "Daily Dourado — 24/07/2026",
+      overview: "The team reported progress.",
+      participant_updates: [
+        {
+          participant: "Igor",
+          attribution_confidence: "high",
+          summary: "Igor está ajustando os testes.",
+          completed: [],
+          in_progress: ["Está ajustando os testes da procura."],
+          blockers: ["A rota padrão está com erro."],
           dependencies: [
             {
               person_or_team: "Victor",
-              dependency: "Provide the representatives route."
+              dependency: "Corrigir a rota padrão."
             }
           ],
-          next_steps: ["Finish the task after the route is available."]
+          next_steps: ["Criará uma subtarefa."]
         }
       ],
       team_blockers: [],
       team_next_steps: [],
-      absent_participants: ["Lúcio"],
+      absent_participants: [],
       unresolved_attributions: []
     });
 
-    expect(daily.participant_updates[0]?.dependencies[0]?.person_or_team).toBe("Victor");
+    const simplified = simplifyDailyResult(legacy);
+    expect(simplified.participantUpdates[0]).toMatchObject({
+      participant: "Igor",
+      blockers: ["A rota padrão está com erro.", "Victor: Corrigir a rota padrão."],
+      nextSteps: ["Criará uma subtarefa."]
+    });
   });
 
   it("validates the local structured meeting result sidecar", () => {

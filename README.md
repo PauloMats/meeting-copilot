@@ -20,13 +20,15 @@ decisions, action items, owners, deadlines, next steps, and open questions.
 - Click-to-start/click-to-finish meeting transcription with an elapsed-time indicator.
 - Explicit General Meeting or Daily / Team Status processing before recording.
 - A compact person-by-person Daily report with concise updates, blockers, and next steps.
-- Optional ordered participants and speaker hints to improve Daily attribution.
+- Manual Daily speaker handoff during continuous recording, starting with `Pessoa 1`.
+- Daily review with editable participant names and transcript segments before the explicit AI call.
 - Dedicated structured AI prompts that do not invent owners, deadlines, decisions, or updates.
 - Automatic Markdown notes under the user's `Documents/Meeting Copilot` directory.
 - Structured JSON sidecars preserve the exact AI result locally for reuse without another AI call.
 - Local PDF and standalone HTML export, plus formatted copy for email, Docs, or Word.
 - Transcript-first persistence: the raw transcript remains saved if AI summarization fails.
-- Saved transcripts retain their meeting type and attribution context for safe retry.
+- Saved transcripts retain their meeting type, manual speaker segments, and attribution context for
+  safe retry.
 
 The document ingestion endpoint currently accepts and validates uploads but deliberately does not
 claim indexing is complete. A storage/indexing worker is listed in the delivery checklist.

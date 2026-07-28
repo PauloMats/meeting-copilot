@@ -4,8 +4,10 @@ import {
   DailySummarySchema,
   DEFAULT_SETTINGS,
   LegacyDailySummarySchema,
+  MeetingContextSchema,
   MeetingNoteDataSchema,
   MeetingSummarySchema,
+  SpeakerSegmentSchema,
   simplifyDailyResult
 } from "./domain.js";
 
@@ -119,5 +121,17 @@ describe("contracts", () => {
     });
 
     expect(data.ai_result?.title).toBe("Planejamento");
+  });
+
+  it("validates manually separated daily speaker segments", () => {
+    const segment = SpeakerSegmentSchema.parse({
+      position: 1,
+      participant: "Bianca",
+      transcript: "Ontem concluí o endpoint de pagamentos."
+    });
+    const legacyContext = MeetingContextSchema.parse({});
+
+    expect(segment.participant).toBe("Bianca");
+    expect(legacyContext.speakerSegments).toEqual([]);
   });
 });

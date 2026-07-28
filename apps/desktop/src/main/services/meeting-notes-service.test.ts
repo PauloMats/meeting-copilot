@@ -23,6 +23,7 @@ describe("MeetingNotesService", () => {
       meetingDate: "",
       orderedParticipants: [],
       speakerHints: [],
+      speakerSegments: [],
       language: "en",
       startedAt: "2026-07-17T12:00:00.000Z",
       endedAt: "2026-07-17T12:30:00.000Z"
@@ -83,6 +84,7 @@ describe("MeetingNotesService", () => {
       meetingDate: "",
       orderedParticipants: [],
       speakerHints: [],
+      speakerSegments: [],
       language: "pt",
       startedAt: "2026-07-17T12:00:00.000Z",
       endedAt: "2026-07-17T12:10:00.000Z"
@@ -103,6 +105,7 @@ describe("MeetingNotesService", () => {
       meetingDate: "",
       orderedParticipants: [],
       speakerHints: [],
+      speakerSegments: [],
       language: "en",
       startedAt: "2026-07-18T12:00:00.000Z",
       endedAt: "2026-07-18T12:10:00.000Z"
@@ -178,6 +181,7 @@ describe("MeetingNotesService", () => {
       meetingDate: "",
       orderedParticipants: [],
       speakerHints: [],
+      speakerSegments: [],
       language: "pt",
       startedAt: "2026-07-17T12:00:00.000Z",
       endedAt: "2026-07-17T12:10:00.000Z"
@@ -227,6 +231,13 @@ describe("MeetingNotesService", () => {
           evidence: "A primeira atualização começa após Igor, pode começar."
         }
       ],
+      speakerSegments: [
+        {
+          position: 1,
+          participant: "Igor",
+          transcript: "Estou aguardando uma rota do Victor."
+        }
+      ],
       language: "pt",
       startedAt: "2026-07-23T12:00:00.000Z",
       endedAt: "2026-07-23T12:10:00.000Z"
@@ -250,6 +261,10 @@ describe("MeetingNotesService", () => {
       hasStructuredResult: true
     });
     expect(loaded.speakerHints[0]?.participant).toBe("Igor");
+    expect(loaded.speakerSegments[0]).toMatchObject({
+      position: 1,
+      participant: "Igor"
+    });
     expect(loaded.structuredResult).toMatchObject({
       participant_updates: [
         {

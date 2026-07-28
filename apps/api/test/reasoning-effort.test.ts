@@ -28,7 +28,8 @@ const generalMeetingContext = {
   meetingName: "",
   meetingDate: "",
   orderedParticipants: [],
-  speakerHints: []
+  speakerHints: [],
+  speakerSegments: []
 };
 
 const dailySummary: DailySummary = {
@@ -146,6 +147,13 @@ describe("basic reasoning effort", () => {
           participant: "Igor",
           evidence: "The first update starts after Igor, pode começar."
         }
+      ],
+      speakerSegments: [
+        {
+          position: 1,
+          participant: "Igor",
+          transcript: "Estou aguardando o Victor publicar uma rota."
+        }
       ]
     });
 
@@ -172,7 +180,9 @@ describe("basic reasoning effort", () => {
           }),
           expect.objectContaining({
             role: "user",
-            content: expect.stringContaining('"ordered_participants":["Igor","Rafaela"]')
+            content: expect.stringContaining(
+              '"speaker_segments":[{"position":1,"participant":"Igor"'
+            )
           })
         ]),
         text: expect.objectContaining({

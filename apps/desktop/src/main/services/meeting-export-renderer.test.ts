@@ -17,7 +17,8 @@ const baseNote: Omit<LoadedMeetingNote, "meetingType" | "structuredResult"> = {
   hasSummary: true,
   hasStructuredResult: true,
   orderedParticipants: [],
-  speakerHints: []
+  speakerHints: [],
+  speakerSegments: []
 };
 
 describe("renderMeetingExport", () => {

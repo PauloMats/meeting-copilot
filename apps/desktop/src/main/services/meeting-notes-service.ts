@@ -161,7 +161,8 @@ function renderMetadata(request: SaveMeetingNoteRequest): string {
     meetingName: request.meetingName,
     meetingDate: request.meetingDate,
     orderedParticipants: request.orderedParticipants,
-    speakerHints: request.speakerHints
+    speakerHints: request.speakerHints,
+    speakerSegments: request.speakerSegments
   })} -->`;
 }
 
@@ -176,7 +177,8 @@ function renderStructuredData(request: SaveMeetingNoteRequest): string {
       started_at: request.startedAt,
       ended_at: request.endedAt,
       ordered_participants: request.orderedParticipants,
-      speaker_hints: request.speakerHints
+      speaker_hints: request.speakerHints,
+      speaker_segments: request.speakerSegments
     },
     ai_result: request.summary
   });
@@ -232,6 +234,7 @@ function parseMeetingNote(
     meetingDate: structuredMeeting?.date ?? metadata.meetingDate,
     orderedParticipants: structuredMeeting?.ordered_participants ?? metadata.orderedParticipants,
     speakerHints: structuredMeeting?.speaker_hints ?? metadata.speakerHints,
+    speakerSegments: structuredMeeting?.speaker_segments ?? metadata.speakerSegments,
     language: structuredMeeting?.language ?? language,
     startedAt: structuredMeeting?.started_at ?? startedAt,
     endedAt: structuredMeeting?.ended_at ?? endedAt,

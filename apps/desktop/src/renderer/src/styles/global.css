@@ -892,7 +892,7 @@ footer span::before {
 
 .daily-fields {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(150px, 0.42fr) minmax(260px, 1.35fr);
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.42fr);
   gap: 12px;
   margin-top: 15px;
 }
@@ -1133,6 +1133,28 @@ footer span::before {
   font-size: 13px;
 }
 
+.active-daily-speaker {
+  display: inline-grid;
+  gap: 2px;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border: 1px solid rgba(84, 217, 192, 0.3);
+  border-radius: 10px;
+  background: rgba(84, 217, 192, 0.07);
+}
+
+.active-daily-speaker span {
+  color: #64d8c5;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.active-daily-speaker strong {
+  color: #e9f7f4;
+  font-size: 14px;
+}
+
 .record-button {
   display: flex;
   align-items: center;
@@ -1157,6 +1179,14 @@ footer span::before {
   min-width: 108px;
   padding: 13px 16px;
   border-radius: 999px;
+}
+
+.next-speaker-button {
+  min-width: 132px;
+  padding: 13px 16px;
+  border-color: rgba(84, 217, 192, 0.36);
+  border-radius: 999px;
+  color: #bdf5e9;
 }
 
 .pause-button span {
@@ -1227,6 +1257,118 @@ footer span::before {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: none;
+}
+
+.daily-review {
+  margin-top: 14px;
+  padding: 20px;
+  border: 1px solid rgba(84, 217, 192, 0.34);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(13, 25, 35, 0.98), rgba(9, 16, 25, 0.98));
+}
+
+.daily-review-heading,
+.daily-review-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.daily-review-heading {
+  align-items: flex-start;
+}
+
+.daily-review-heading h2 {
+  margin-top: 5px;
+  color: #e8f2fb;
+  font-size: 18px;
+}
+
+.daily-review-heading p:last-child,
+.daily-review-submit small {
+  margin: 6px 0 0;
+  color: #8193aa;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.daily-review-heading > span {
+  flex: none;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #8be8d7;
+  background: rgba(84, 217, 192, 0.1);
+  font-size: 10px;
+}
+
+.daily-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.daily-review-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #29384b;
+  border-radius: 12px;
+  background: rgba(7, 13, 21, 0.78);
+}
+
+.daily-review-card label {
+  display: grid;
+  gap: 6px;
+}
+
+.daily-review-card label > span {
+  color: #91a4ba;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.daily-review-card input,
+.daily-review-card textarea {
+  width: 100%;
+  border: 1px solid #2b3b50;
+  border-radius: 8px;
+  outline: none;
+  color: #e2ebf6;
+  background: #101927;
+}
+
+.daily-review-card input {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.daily-review-card textarea {
+  min-height: 126px;
+  padding: 10px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.daily-review-card input:focus,
+.daily-review-card textarea:focus {
+  border-color: #4e9e91;
+  box-shadow: 0 0 0 3px rgba(84, 217, 192, 0.08);
+}
+
+.daily-review-submit {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #223043;
+}
+
+.daily-review-submit small {
+  margin: 0;
+}
+
+.daily-review-submit button {
   flex: none;
 }
 
@@ -1962,8 +2104,15 @@ footer span::before {
 
   .meeting-type-options,
   .daily-fields,
+  .daily-review-grid,
   .participant-update-grid {
     grid-template-columns: 1fr;
+  }
+
+  .daily-review-heading,
+  .daily-review-submit {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .speaker-hint-row {

@@ -37,11 +37,19 @@ export const SpeakerHintSchema = z
   });
 export type SpeakerHint = z.infer<typeof SpeakerHintSchema>;
 
+export const SpeakerSegmentSchema = z.object({
+  position: z.number().int().min(1).max(30),
+  participant: z.string().trim().max(120).default(""),
+  transcript: z.string().trim().max(50_000).default("")
+});
+export type SpeakerSegment = z.infer<typeof SpeakerSegmentSchema>;
+
 export const MeetingContextSchema = z.object({
   meetingName: z.string().trim().max(160).default(""),
   meetingDate: z.string().trim().max(32).default(""),
   orderedParticipants: z.array(z.string().trim().min(1).max(120)).max(30).default([]),
-  speakerHints: z.array(SpeakerHintSchema).max(30).default([])
+  speakerHints: z.array(SpeakerHintSchema).max(30).default([]),
+  speakerSegments: z.array(SpeakerSegmentSchema).max(30).default([])
 });
 export type MeetingContext = z.infer<typeof MeetingContextSchema>;
 
@@ -219,7 +227,8 @@ export const MeetingNoteDataSchema = z.object({
     started_at: z.string().datetime(),
     ended_at: z.string().datetime(),
     ordered_participants: z.array(z.string()),
-    speaker_hints: z.array(SpeakerHintSchema)
+    speaker_hints: z.array(SpeakerHintSchema),
+    speaker_segments: z.array(SpeakerSegmentSchema).default([])
   }),
   ai_result: MeetingResultSchema.nullable()
 });
@@ -257,6 +266,7 @@ export interface LoadedMeetingNote extends SavedMeetingNoteEntry {
   meetingDate: string;
   orderedParticipants: string[];
   speakerHints: SpeakerHint[];
+  speakerSegments: SpeakerSegment[];
 }
 
 export const ContextProfileSchema = z.object({

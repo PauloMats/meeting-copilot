@@ -1,4 +1,4 @@
-import type { AudioDevice, MeetingType, SpeakerHint } from "@meeting-copilot/contracts";
+import type { AudioDevice, MeetingType, SpeakerSegment } from "@meeting-copilot/contracts";
 import { useState } from "react";
 import { SourcePicker } from "./SourcePicker";
 import { StateIndicator } from "./StateIndicator";
@@ -14,8 +14,6 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
   const [meetingType, setMeetingType] = useState<MeetingType>("general_meeting");
   const [meetingName, setMeetingName] = useState("");
   const [meetingDate, setMeetingDate] = useState(todayForInput);
-  const [participantsText, setParticipantsText] = useState("");
-  const [speakerHints, setSpeakerHints] = useState<SpeakerHintDraft[]>([]);
   const pt = notes.settings.language === "pt";
   const isBusy =
     notes.state === "thinking" ||
@@ -31,7 +29,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
       : pt
         ? "Transcrevendo"
         : "Transcribing",
-    ready_to_send: pt ? "Finalizando" : "Finalizing",
+    ready_to_send: pt ? "Revisar participantes" : "Review participants",
     thinking: pt ? "Criando resumo" : "Creating summary",
     answering: pt ? "Criando resumo" : "Creating summary",
     error: pt ? "Atenção" : "Needs attention"
@@ -87,7 +85,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
             role="radio"
             aria-checked={meetingType === "general_meeting"}
             className={meetingType === "general_meeting" ? "is-selected" : ""}
-            disabled={notes.isRecording || isBusy}
+            disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
             onClick={() => setMeetingType("general_meeting")}
           >
             <span className="meeting-type-icon" aria-hidden="true">
@@ -107,7 +105,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
             role="radio"
             aria-checked={meetingType === "daily"}
             className={meetingType === "daily" ? "is-selected" : ""}
-            disabled={notes.isRecording || isBusy}
+            disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
             onClick={() => setMeetingType("daily")}
           >
             <span className="meeting-type-icon" aria-hidden="true">
@@ -128,22 +126,18 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
       {meetingType === "daily" && (
         <DailyConfiguration
           portuguese={pt}
-          disabled={notes.isRecording || isBusy}
+          disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
           meetingName={meetingName}
           meetingDate={meetingDate}
-          participantsText={participantsText}
-          speakerHints={speakerHints}
           onMeetingNameChange={setMeetingName}
           onMeetingDateChange={setMeetingDate}
-          onParticipantsTextChange={setParticipantsText}
-          onSpeakerHintsChange={setSpeakerHints}
         />
       )}
 
       <section className="control-panel notes-controls">
         <SourcePicker
           label={pt ? "Saída de áudio do Windows" : "Windows audio output"}
-          disabled={notes.isRecording || isBusy}
+          disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
           requireExplicitSelection
           emptyLabel={pt ? "Selecione o dispositivo…" : "Select the output device…"}
           unavailableLabel={pt ? "Nenhuma saída de áudio encontrada" : "No audio output found"}
@@ -153,7 +147,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
           {pt ? "Idioma" : "Language"}
           <select
             value={notes.settings.language}
-            disabled={notes.isRecording}
+            disabled={notes.isRecording || notes.isDailyReviewPending}
             onChange={(event) => void notes.updateSettings({ language: event.target.value })}
           >
             {languages.map((language) => (
@@ -167,7 +161,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
           {pt ? "Inteligência" : "Intelligence"}
           <select
             value={notes.settings.intelligenceLevel}
-            disabled={notes.isRecording}
+            disabled={notes.isRecording || notes.isDailyReviewPending}
             onChange={(event) =>
               void notes.updateSettings({
                 intelligenceLevel: event.target.value as typeof notes.settings.intelligenceLevel
@@ -182,7 +176,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         <label className="switch">
           <input
             type="checkbox"
-            disabled={notes.isRecording}
+            disabled={notes.isRecording || notes.isDailyReviewPending}
             checked={notes.settings.includeMicrophone}
             onChange={(event) =>
               void notes.updateSettings({ includeMicrophone: event.target.checked })
@@ -259,9 +253,13 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? pt
                   ? "GRAVAÇÃO EM ANDAMENTO"
                   : "RECORDING IN PROGRESS"
-                : pt
-                  ? "PRONTO PARA COMEÇAR"
-                  : "READY TO START"}
+                : notes.isDailyReviewPending
+                  ? pt
+                    ? "REVISÃO DA DAILY"
+                    : "DAILY REVIEW"
+                  : pt
+                    ? "PRONTO PARA COMEÇAR"
+                    : "READY TO START"}
           </span>
           <h2>
             {notes.isPaused
@@ -272,13 +270,17 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? pt
                   ? "Estou ouvindo a reunião"
                   : "Listening to your meeting"
-                : isBusy
+                : notes.isDailyReviewPending
                   ? pt
-                    ? "Organizando suas anotações"
-                    : "Organizing your notes"
-                  : pt
-                    ? "Um clique inicia. Outro finaliza."
-                    : "One click starts. Another finishes."}
+                    ? "Revise as pessoas antes de enviar"
+                    : "Review speakers before sending"
+                  : isBusy
+                    ? pt
+                      ? "Organizando suas anotações"
+                      : "Organizing your notes"
+                    : pt
+                      ? "Um clique inicia. Outro finaliza."
+                      : "One click starts. Another finishes."}
           </h2>
           <p>
             {notes.isPaused
@@ -289,12 +291,40 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? pt
                   ? "A transcrição aparece abaixo em tempo real."
                   : "The transcript appears below in real time."
-                : pt
-                  ? "Ao finalizar, a transcrição será salva e resumida pela IA."
-                  : "When finished, the transcript is saved and summarized by AI."}
+                : notes.isDailyReviewPending
+                  ? pt
+                    ? "Edite os nomes e os trechos abaixo. A IA só será chamada quando você confirmar."
+                    : "Edit names and segments below. AI is called only after you confirm."
+                  : pt
+                    ? meetingType === "daily"
+                      ? "Durante a gravação, avance manualmente quando a próxima pessoa começar."
+                      : "Ao finalizar, a transcrição será salva e resumida pela IA."
+                    : meetingType === "daily"
+                      ? "During recording, advance manually when the next person starts."
+                      : "When finished, the transcript is saved and summarized by AI."}
           </p>
+          {notes.isRecording && meetingType === "daily" && (
+            <div className="active-daily-speaker">
+              <span>{pt ? "FALANDO AGORA" : "SPEAKING NOW"}</span>
+              <strong>
+                {pt ? "Pessoa" : "Person"} {notes.activeDailySegmentIndex + 1}
+              </strong>
+            </div>
+          )}
         </div>
         <div className="recording-actions">
+          {notes.isRecording && meetingType === "daily" && (
+            <button
+              className="secondary next-speaker-button"
+              disabled={
+                notes.isPaused ||
+                !notes.dailySegments[notes.activeDailySegmentIndex]?.transcript.trim()
+              }
+              onClick={notes.nextDailySpeaker}
+            >
+              {pt ? "Próxima pessoa" : "Next person"} →
+            </button>
+          )}
           {notes.isRecording && (
             <button
               className={`secondary pause-button ${notes.isPaused ? "resume-button" : ""}`}
@@ -308,7 +338,9 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
           )}
           <button
             className={`record-button ${notes.isRecording ? "record-button-stop" : ""}`}
-            disabled={isBusy || (!notes.isRecording && !selectedSource)}
+            disabled={
+              isBusy || notes.isDailyReviewPending || (!notes.isRecording && !selectedSource)
+            }
             onClick={() =>
               void (notes.isRecording
                 ? notes.stopRecording()
@@ -316,10 +348,9 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                     meetingType,
                     meetingName: meetingName.trim(),
                     meetingDate: meetingDate.trim(),
-                    orderedParticipants: parseParticipants(participantsText),
-                    speakerHints: speakerHints
-                      .map(toSpeakerHint)
-                      .filter((hint): hint is SpeakerHint => hint !== null)
+                    orderedParticipants: [],
+                    speakerHints: [],
+                    speakerSegments: []
                   }))
             }
           >
@@ -359,6 +390,16 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
             </button>
           </div>
         </div>
+      )}
+
+      {notes.isDailyReviewPending && (
+        <DailySpeakerReview
+          portuguese={pt}
+          segments={notes.dailySegments}
+          submitting={notes.state === "thinking"}
+          onChange={notes.updateDailySegment}
+          onSubmit={() => void notes.submitDailySummary()}
+        />
       )}
 
       <section className="saved-transcripts">
@@ -429,7 +470,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                     <MeetingExportMenu
                       filePath={entry.filePath}
                       structuredResultAvailable={entry.hasStructuredResult}
-                      disabled={notes.isRecording || isBusy}
+                      disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
                       portuguese={pt}
                       compact
                     />
@@ -441,7 +482,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                     </button>
                     <button
                       className="compact-button retry-summary-button"
-                      disabled={notes.isRecording || isBusy}
+                      disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
                       onClick={() => void notes.retrySavedNote(entry)}
                     >
                       {retrying
@@ -541,68 +582,36 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
   );
 }
 
-interface SpeakerHintDraft {
-  id: string;
-  participant: string;
-  kind: "evidence" | "known_update";
-  detail: string;
-}
-
 function DailyConfiguration({
   portuguese,
   disabled,
   meetingName,
   meetingDate,
-  participantsText,
-  speakerHints,
   onMeetingNameChange,
-  onMeetingDateChange,
-  onParticipantsTextChange,
-  onSpeakerHintsChange
+  onMeetingDateChange
 }: {
   portuguese: boolean;
   disabled: boolean;
   meetingName: string;
   meetingDate: string;
-  participantsText: string;
-  speakerHints: SpeakerHintDraft[];
   onMeetingNameChange: (value: string) => void;
   onMeetingDateChange: (value: string) => void;
-  onParticipantsTextChange: (value: string) => void;
-  onSpeakerHintsChange: (value: SpeakerHintDraft[]) => void;
 }) {
-  const addHint = () =>
-    onSpeakerHintsChange([
-      ...speakerHints,
-      {
-        id: globalThis.crypto.randomUUID(),
-        participant: "",
-        kind: "evidence",
-        detail: ""
-      }
-    ]);
-  const updateHint = (id: string, patch: Partial<SpeakerHintDraft>) =>
-    onSpeakerHintsChange(
-      speakerHints.map((hint) => (hint.id === id ? { ...hint, ...patch } : hint))
-    );
-
   return (
     <section className="daily-configuration">
       <div className="daily-configuration-heading">
         <div>
-          <p className="eyebrow">
-            {portuguese ? "CONTEXTO PARA ATRIBUIÇÃO" : "ATTRIBUTION CONTEXT"}
-          </p>
+          <p className="eyebrow">{portuguese ? "FLUXO DA DAILY" : "DAILY FLOW"}</p>
           <h2>
             {portuguese
-              ? "Ajude a IA a separar corretamente cada participante"
-              : "Help AI separate each participant correctly"}
+              ? "Você controla quando cada pessoa começa a falar"
+              : "You control when each person starts speaking"}
           </h2>
         </div>
         <small>
           {portuguese
-            ? "Participantes e dicas são opcionais, mas aumentam a precisão."
-            : "Participants and hints are optional, but improve accuracy."}
+            ? "Começa em Pessoa 1. Use “Próxima pessoa” durante a gravação e informe os nomes na revisão."
+            : "Starts at Person 1. Use “Next person” while recording, then enter names during review."}
         </small>
       </div>
       <div className="daily-fields">
@@ -625,105 +634,91 @@ function DailyConfiguration({
             onChange={(event) => onMeetingDateChange(event.target.value)}
           />
         </label>
-        <label className="daily-field daily-participants-field">
-          <span>
-            {portuguese ? "Participantes na ordem esperada" : "Expected participant order"}
-          </span>
-          <textarea
-            value={participantsText}
-            disabled={disabled}
-            rows={3}
-            placeholder={
-              portuguese
-                ? "Um por linha: Igor, Lemuel, Luis, Rafaela…"
-                : "One per line: Ana, John, Maria…"
-            }
-            onChange={(event) => onParticipantsTextChange(event.target.value)}
-          />
-          <small>
-            {portuguese
-              ? "A ordem é apenas uma pista; a transcrição continua sendo a principal evidência."
-              : "Order is only a hint; the transcript remains the primary evidence."}
-          </small>
-        </label>
       </div>
+    </section>
+  );
+}
 
-      <div className="speaker-hints">
-        <div className="speaker-hints-heading">
-          <div>
-            <strong>
-              {portuguese ? "Dicas conhecidas de participante" : "Known speaker hints"}
-            </strong>
-            <small>
-              {portuguese
-                ? "Use quando souber quem falou determinado trecho ou o que alguém atualizou."
-                : "Use when you know who said a segment or what someone reported."}
-            </small>
-          </div>
-          <button
-            type="button"
-            className="secondary compact-button"
-            disabled={disabled}
-            onClick={addHint}
-          >
-            + {portuguese ? "Adicionar dica" : "Add hint"}
-          </button>
+function DailySpeakerReview({
+  portuguese,
+  segments,
+  submitting,
+  onChange,
+  onSubmit
+}: {
+  portuguese: boolean;
+  segments: SpeakerSegment[];
+  submitting: boolean;
+  onChange: (
+    index: number,
+    patch: Partial<Pick<SpeakerSegment, "participant" | "transcript">>
+  ) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <section className="daily-review">
+      <div className="daily-review-heading">
+        <div>
+          <p className="eyebrow">{portuguese ? "REVISÃO ANTES DA IA" : "REVIEW BEFORE AI"}</p>
+          <h2>
+            {portuguese ? "Confirme quem falou cada trecho" : "Confirm who spoke in each segment"}
+          </h2>
+          <p>
+            {portuguese
+              ? "A transcrição já está salva localmente. Edite nomes ou texto; o envio só acontece pelo botão abaixo."
+              : "The transcript is already saved locally. Edit names or text; submission only happens with the button below."}
+          </p>
         </div>
-        {speakerHints.map((hint) => (
-          <div className="speaker-hint-row" key={hint.id}>
-            <input
-              aria-label={portuguese ? "Participante" : "Participant"}
-              value={hint.participant}
-              disabled={disabled}
-              placeholder={portuguese ? "Participante" : "Participant"}
-              onChange={(event) => updateHint(hint.id, { participant: event.target.value })}
-            />
-            <select
-              aria-label={portuguese ? "Tipo da dica" : "Hint type"}
-              value={hint.kind}
-              disabled={disabled}
-              onChange={(event) =>
-                updateHint(hint.id, {
-                  kind: event.target.value as SpeakerHintDraft["kind"]
-                })
-              }
-            >
-              <option value="evidence">
-                {portuguese ? "Identificação / evidência" : "Identification / evidence"}
-              </option>
-              <option value="known_update">
-                {portuguese ? "Atualização conhecida" : "Known update"}
-              </option>
-            </select>
-            <input
-              aria-label={portuguese ? "Detalhe da dica" : "Hint detail"}
-              value={hint.detail}
-              disabled={disabled}
-              maxLength={1000}
-              placeholder={
-                hint.kind === "evidence"
-                  ? portuguese
-                    ? "Ex.: começa após “Igor, pode começar”"
-                    : "E.g. starts after “Igor, go ahead”"
-                  : portuguese
-                    ? "Ex.: trabalhou no filtro do gestor"
-                    : "E.g. worked on the manager filter"
-              }
-              onChange={(event) => updateHint(hint.id, { detail: event.target.value })}
-            />
-            <button
-              type="button"
-              className="speaker-hint-remove"
-              disabled={disabled}
-              aria-label={portuguese ? "Remover dica" : "Remove hint"}
-              onClick={() =>
-                onSpeakerHintsChange(speakerHints.filter((item) => item.id !== hint.id))
-              }
-            >
-              ×
-            </button>
-          </div>
+        <span>
+          {segments.length} {portuguese ? "pessoas" : "people"}
+        </span>
+      </div>
+      <div className="daily-review-grid">
+        {segments.map((segment, index) => (
+          <article className="daily-review-card" key={segment.position}>
+            <label>
+              <span>
+                {portuguese ? "Pessoa" : "Person"} {index + 1}
+              </span>
+              <input
+                value={segment.participant}
+                maxLength={120}
+                placeholder={
+                  portuguese ? `Nome da pessoa ${index + 1}` : `Person ${index + 1} name`
+                }
+                onChange={(event) => onChange(index, { participant: event.target.value })}
+              />
+            </label>
+            <label>
+              <span>{portuguese ? "Transcrição" : "Transcript"}</span>
+              <textarea
+                value={segment.transcript}
+                rows={7}
+                maxLength={50_000}
+                onChange={(event) => onChange(index, { transcript: event.target.value })}
+              />
+            </label>
+          </article>
         ))}
+      </div>
+      <div className="daily-review-submit">
+        <small>
+          {portuguese
+            ? "Os nomes informados serão tratados como atribuição manual confiável."
+            : "Entered names are treated as trusted manual attribution."}
+        </small>
+        <button
+          disabled={submitting || !segments.some((segment) => segment.transcript.trim())}
+          onClick={onSubmit}
+        >
+          {submitting
+            ? portuguese
+              ? "Enviando…"
+              : "Sending…"
+            : portuguese
+              ? "Enviar para IA e resumir"
+              : "Send to AI and summarize"}
+        </button>
       </div>
     </section>
   );
@@ -733,26 +728,6 @@ function todayForInput(): string {
   const now = new Date();
   const timezoneOffset = now.getTimezoneOffset() * 60_000;
   return new Date(now.getTime() - timezoneOffset).toISOString().slice(0, 10);
-}
-
-function parseParticipants(value: string): string[] {
-  return [
-    ...new Set(
-      value
-        .split(/[\n,;]+/)
-        .map((participant) => participant.trim())
-        .filter(Boolean)
-    )
-  ].slice(0, 30);
-}
-
-function toSpeakerHint(hint: SpeakerHintDraft): SpeakerHint | null {
-  const participant = hint.participant.trim();
-  const detail = hint.detail.trim();
-  if (!participant || !detail) return null;
-  return hint.kind === "evidence"
-    ? { participant, evidence: detail }
-    : { participant, known_update: detail };
 }
 
 function AudioLevelMeter({

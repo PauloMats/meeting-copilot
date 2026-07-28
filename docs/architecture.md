@@ -60,15 +60,19 @@ Canonical schemas live in `packages/contracts/src`.
 1. The user explicitly selects General Meeting or Daily / Team Status and starts a long-form
    capture from the Smart Meeting Notes mode.
 2. The existing desktop-audio and optional microphone pipeline streams transcription deltas.
-3. On the second click, media tracks stop and the transcription buffer is committed.
-4. Electron saves a transcript-first Markdown draft under `Documents/Meeting Copilot`.
-5. `POST /api/meeting-summaries` selects the matching structured processor. General Meeting
-   extracts topics, decisions and action items. Daily produces person-by-person status using
-   optional participant order and speaker hints as attribution evidence.
-6. Electron rewrites the same Markdown file with the validated summary and full transcript. If the
+3. During a Daily, transcription deltas are assigned to `Pessoa 1` until the user explicitly
+   advances to the next person. Capture continues without interruption.
+4. On the second click, media tracks stop and the transcription buffer is committed.
+5. Electron saves a transcript-first Markdown draft under `Documents/Meeting Copilot`.
+6. General Meeting immediately calls `POST /api/meeting-summaries`. Daily instead opens a review
+   where participant names and transcript segments remain editable; no AI request is made yet.
+7. The reviewed Daily is sent only through the explicit `Enviar para IA e resumir` action. Manual
+   speaker segments are treated as authoritative attribution evidence by the structured processor.
+8. Electron rewrites the same Markdown file with the validated summary and full transcript. If the
    provider fails, the transcript-first draft remains available.
-7. Meeting type and Daily attribution context are stored as Markdown metadata so retrying a saved
-   transcript uses the original processor and inputs.
+9. Meeting type, manual Daily speaker segments, and attribution context are stored in Markdown
+   metadata and the JSON sidecar so retrying a saved transcript uses the original processor and
+   inputs.
 
 ## Retrieval abstraction
 

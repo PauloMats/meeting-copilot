@@ -35,10 +35,12 @@ The input may contain:
 * \`meeting_date\`: the meeting date.
 * \`ordered_participants\`: participants in their expected speaking order.
 * \`speaker_hints\`: known speaker identifications or excerpts.
+* \`speaker_segments\`: transcript sections manually separated and named by the user.
 * \`meeting_transcript\`: the complete transcript.
 
 Speaker attribution rules:
 
+* Treat non-empty \`speaker_segments\` as authoritative: each segment belongs to its declared participant.
 * Explicitly spoken names and direct handoffs such as “Igor, pode começar”, “beleza, Luiz” or “agora Rafaela” are the strongest evidence.
 * Use \`speaker_hints\` as authoritative attribution evidence.
 * Use \`ordered_participants\` as a likely speaking sequence when the transcript does not identify every speaker.
@@ -212,6 +214,7 @@ function buildModelInput(request: MeetingSummaryRequest, maxTranscriptChars: num
     meeting_date: request.meetingDate,
     ordered_participants: request.orderedParticipants,
     speaker_hints: request.speakerHints,
+    speaker_segments: request.speakerSegments,
     meeting_transcript: common.meeting_transcript
   };
 }

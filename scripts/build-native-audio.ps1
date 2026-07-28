@@ -42,7 +42,25 @@ $toolchainDirectory = Join-Path $env:LOCALAPPDATA "meeting-copilot\toolchain"
 $localDotnet = Join-Path $toolchainDirectory "dotnet\dotnet.exe"
 $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
 
-if (-not $dotnet -and -not (Test-Path $localDotnet)) {
+function Test-DotnetSdk {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$DotnetPath
+  )
+
+  try {
+    $installedSdks = & $DotnetPath --list-sdks 2>$null
+    return $LASTEXITCODE -eq 0 -and [bool]$installedSdks
+  }
+  catch {
+    return $false
+  }
+}
+
+$systemDotnetHasSdk = $dotnet -and (Test-DotnetSdk $dotnet.Source)
+$localDotnetHasSdk = (Test-Path $localDotnet) -and (Test-DotnetSdk $localDotnet)
+
+if (-not $systemDotnetHasSdk -and -not $localDotnetHasSdk) {
   New-Item -ItemType Directory -Force -Path $toolchainDirectory | Out-Null
   $installScript = Join-Path $env:TEMP "meeting-copilot-dotnet-install.ps1"
   Invoke-WebRequest -UseBasicParsing "https://dot.net/v1/dotnet-install.ps1" -OutFile $installScript
@@ -54,9 +72,14 @@ if (-not $dotnet -and -not (Test-Path $localDotnet)) {
   if ($LASTEXITCODE -ne 0) {
     throw "Could not install the local .NET 8 build toolchain."
   }
+  $localDotnetHasSdk = Test-DotnetSdk $localDotnet
 }
 
-$dotnetPath = if ($dotnet) { $dotnet.Source } else { $localDotnet }
+$dotnetPath = if ($systemDotnetHasSdk) { $dotnet.Source } else { $localDotnet }
+if (-not (Test-DotnetSdk $dotnetPath)) {
+  throw "A .NET SDK is required to build the WASAPI helper."
+}
+
 $project = Join-Path $repositoryRoot "native\windows-audio-capture\MeetingCopilot.AudioCapture.csproj"
 $output = Join-Path $repositoryRoot "native\windows-audio-capture\publish"
 

@@ -163,7 +163,9 @@ describe("basic reasoning effort", () => {
         input: expect.arrayContaining([
           expect.objectContaining({
             role: "system",
-            content: expect.stringContaining("small set of direct, self-contained update bullets")
+            content: expect.stringMatching(
+              /outside observer's point of view[\s\S]+“Ainda não enviei” must never become “enviou”/
+            )
           })
         ])
       })
@@ -174,8 +176,8 @@ describe("basic reasoning effort", () => {
         input: expect.arrayContaining([
           expect.objectContaining({
             role: "system",
-            content: expect.stringContaining(
-              "A previous structured daily report was truncated or invalid"
+            content: expect.stringMatching(
+              /A previous structured daily report was truncated or invalid[\s\S]+Third-person observer voice/
             )
           }),
           expect.objectContaining({

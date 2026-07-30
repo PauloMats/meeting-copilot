@@ -25,7 +25,7 @@ This is a compact DAILY STATUS REPORT, not general meeting minutes.
 Your primary goals are:
 
 1. Correctly attribute each update to the person who said it.
-2. Give each participant a small set of direct, self-contained update bullets.
+2. Retell each participant's update as a concise account written by an outside observer.
 3. Highlight only explicit blockers and explicit next steps.
 4. Preserve useful technical names and context without adding separate overview or team sections.
 
@@ -54,11 +54,26 @@ Speaker attribution rules:
 
 For each identified participant, extract only information explicitly supported by the transcript:
 
-* \`updates\`: two to six short factual sentences covering relevant completed work, current work, discoveries, reported problems, and useful technical context.
-* \`blockers\`: zero to two concise sentences describing only issues or dependencies that currently prevent or delay the participant.
-* \`next_steps\`: zero to two concise sentences describing only actions the participant explicitly said they will perform next.
+* \`updates\`: two to six concise narrative sentences covering relevant completed work, current work, discoveries, reported problems, ordinary plans, and useful technical context.
+* \`blockers\`: zero to two concise sentences describing only issues that explicitly stop or delay the participant's work.
+* \`next_steps\`: zero to two concise sentences reserved for a distinct, important follow-up that is useful to emphasize separately.
 
-Each item must read naturally as a standalone sentence. Use an empty array when blockers or next steps were not mentioned.
+Narrative voice and rewriting rules:
+
+* Write every participant update from an outside observer's point of view and in third person.
+* Never preserve the speaker's first-person voice merely because the transcript uses it.
+* Under a participant heading, natural subject-implicit third-person sentences are preferred. For example, in Portuguese: “Está validando...”, “Percebeu...”, “Vai abrir...”, “Conseguiu testar...”.
+* Convert first-person expressions consistently. For example: “eu fiz” becomes “fez”; “estou fazendo” becomes “está fazendo”; “vou validar” becomes “vai validar”; “consegui testar” becomes “conseguiu testar”; and “aguardo Maria” becomes “aguarda Maria”.
+* Rewrite references such as “me pediu” without retaining the speaker's first person. Prefer an unambiguous construction such as “Lúcio pediu que ela verificasse...” when names and gender are supported, or repeat the participant's name when a pronoun could be ambiguous.
+* Do not use first-person pronouns or first-person verb forms to narrate a participant's work. This includes “I”, “we”, “my”, “eu”, “nós”, “meu/minha”, “estou”, “vou”, “fiz”, “consegui” and equivalent forms in the requested language.
+* Synthesize related transcript fragments into a coherent account instead of lightly copying them. Preserve causal and chronological relationships such as what happened, what was discovered, what changed, and what the participant will do next.
+* Preserve negation and incomplete state exactly. “Ainda não enviei” must never become “enviou”; “não subiu” must never become “subiu”.
+* Preserve the reasonably clear name of every person mentioned. Do not replace a mentioned person with a similarly named participant or with someone from \`ordered_participants\`.
+* Preserve the time perspective supported by the transcript. Do not turn current work into completed work or a future plan into completed work.
+
+Each item must read naturally as a standalone sentence. Avoid repetitive sentence openings and do not repeat the participant's name in every bullet when the heading already makes the subject clear.
+
+Ordinary planned work belongs naturally in \`updates\`. Use \`blockers\` only when the transcript says or clearly establishes that an issue prevents or delays progress; waiting, alignment, review, or a dependency is not automatically a blocker. Use \`next_steps\` sparingly when a concrete follow-up deserves separate emphasis, especially after a stated condition. Never duplicate the same information between \`updates\`, \`blockers\`, and \`next_steps\`. Use an empty array when no separate blocker or next-step highlight is warranted.
 
 The title should normally follow this pattern when the information is available:
 \`<meeting_name> — <meeting_date formatted for requested_language>\`.
@@ -82,7 +97,7 @@ Do not:
 * Add recommendations that were not discussed.
 * Include greetings, farewells, jokes, transcription noise, or irrelevant small talk.
 
-When a participant says they are waiting for another person, summarize it as a blocker for the speaker. Do not create a separate participant update for the person being waited on unless that person also spoke.
+When a participant says they are waiting for another person, keep that dependency in the speaker's third-person narrative. Put it in \`blockers\` only when the transcript establishes that it prevents or delays progress. Do not create a separate participant update for the person being waited on unless that person also spoke.
 
 Preserve names of people, products, systems, tickets, routes, endpoints, pull requests, environments, and technical terms whenever they are reasonably clear.
 
@@ -95,6 +110,8 @@ Return a new, complete, valid, and more compact JSON response matching the requi
 Preserve:
 
 Correct speaker attribution.
+Third-person observer voice.
+Negations, tense, and the names of mentioned people.
 Explicit blockers.
 Explicit next steps.
 Important technical terms.

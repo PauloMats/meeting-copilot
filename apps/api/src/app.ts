@@ -2,12 +2,15 @@ import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import {
   AnswerRequestSchema,
+  CloudMeetingListResponseSchema,
+  CloudMeetingNoteSchema,
   CreateContextProfileSchema,
   CreateGlossaryTermSchema,
   MeetingSummaryRequestSchema,
   RealtimeTokenRequestSchema,
   UpdateContextProfileSchema,
   UpdateGlossaryTermSchema,
+  UpsertCloudMeetingRequestSchema,
   type ContextProfile,
   type GlossaryTerm
 } from "@meeting-copilot/contracts";
@@ -18,6 +21,8 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { AppConfig } from "./config.js";
 import { AnswerService } from "./modules/answering/service.js";
+import type { CloudMeetingRepository } from "./modules/cloud-meetings/repository.js";
+import { PostgresCloudMeetingRepository } from "./modules/cloud-meetings/postgres-repository.js";
 import { MeetingSummaryService } from "./modules/meeting-summary/service.js";
 import {
   MemoryContextRepository,
@@ -31,6 +36,7 @@ export interface AppDependencies {
   contextRepository?: ContextRepository;
   openai?: OpenAI;
   realtimeTokenService?: RealtimeTokenService;
+  cloudMeetingRepository?: CloudMeetingRepository;
 }
 
 export async function buildApp(
@@ -62,6 +68,10 @@ export async function buildApp(
       ? new PostgresContextRepository(database.db, config.APP_USER_EMAIL)
       : new MemoryContextRepository());
   await contextRepository.init();
+  const cloudMeetingRepository =
+    dependencies.cloudMeetingRepository ??
+    (database ? new PostgresCloudMeetingRepository(database.db, config.APP_USER_EMAIL) : null);
+  if (cloudMeetingRepository) await cloudMeetingRepository.init();
   if (database) {
     app.addHook("onClose", () => database.close());
   }
@@ -140,6 +150,41 @@ export async function buildApp(
     const input = MeetingSummaryRequestSchema.parse(request.body);
     return meetingSummaryService.generate(input);
   });
+
+  app.get("/api/cloud-meetings", async (_request, reply) => {
+    if (!cloudMeetingRepository)
+      return reply.code(503).send({ message: "Cloud meeting storage is not configured" });
+    return CloudMeetingListResponseSchema.parse({ meetings: await cloudMeetingRepository.list() });
+  });
+
+  app.get<{ Params: { id: string } }>("/api/cloud-meetings/:id", async (request, reply) => {
+    if (!cloudMeetingRepository)
+      return reply.code(503).send({ message: "Cloud meeting storage is not configured" });
+    const id = z.string().uuid().parse(request.params.id);
+    const meeting = await cloudMeetingRepository.find(id);
+    return meeting
+      ? CloudMeetingNoteSchema.parse(meeting)
+      : reply.code(404).send({ message: "Cloud meeting not found" });
+  });
+
+  app.post("/api/cloud-meetings", async (request, reply) => {
+    if (!cloudMeetingRepository)
+      return reply.code(503).send({ message: "Cloud meeting storage is not configured" });
+    const input = UpsertCloudMeetingRequestSchema.parse(request.body);
+    return CloudMeetingNoteSchema.parse(await cloudMeetingRepository.upsert(input));
+  });
+
+  app.delete<{ Params: { clientMeetingId: string } }>(
+    "/api/cloud-meetings/by-client/:clientMeetingId",
+    async (request, reply) => {
+      if (!cloudMeetingRepository)
+        return reply.code(503).send({ message: "Cloud meeting storage is not configured" });
+      const clientMeetingId = z.string().uuid().parse(request.params.clientMeetingId);
+      return {
+        deleted: await cloudMeetingRepository.deleteByClientMeetingId(clientMeetingId)
+      };
+    }
+  );
 
   app.get("/api/context-profiles", () => contextRepository.listProfiles());
   app.post("/api/context-profiles", async (request, reply) => {

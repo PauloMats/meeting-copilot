@@ -7,6 +7,8 @@ import {
   GlossaryTermSchema,
   IntelligenceLevelSchema,
   MeetingContextSchema,
+  MeetingNotePayloadSchema,
+  MeetingResultSchema,
   MeetingSummarySchema,
   MeetingTypeSchema
 } from "./domain.js";
@@ -69,6 +71,40 @@ export const MeetingSummaryResponseSchema = z.object({
   intelligenceLevel: IntelligenceLevelSchema
 });
 
+export const UpsertCloudMeetingRequestSchema = MeetingNotePayloadSchema.extend({
+  clientMeetingId: z.string().uuid()
+});
+
+export const CloudMeetingEntrySchema = z.object({
+  id: z.string().uuid(),
+  clientMeetingId: z.string().uuid(),
+  title: z.string(),
+  transcriptPreview: z.string(),
+  meetingType: MeetingTypeSchema,
+  meetingName: z.string(),
+  language: z.string(),
+  startedAt: z.string().datetime(),
+  endedAt: z.string().datetime(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  hasSummary: z.boolean()
+});
+
+export const CloudMeetingNoteSchema = CloudMeetingEntrySchema.extend({
+  transcript: z.string(),
+  summary: MeetingResultSchema.nullable(),
+  meetingDate: z.string(),
+  orderedParticipants: z.array(z.string()),
+  speakerHints: MeetingContextSchema.shape.speakerHints,
+  speakerSegments: MeetingContextSchema.shape.speakerSegments
+});
+
+export const CloudMeetingListResponseSchema = z.object({
+  meetings: z.array(CloudMeetingEntrySchema)
+});
+
+export const DeleteCloudMeetingResponseSchema = z.object({ deleted: z.boolean() });
+
 export const CreateContextProfileSchema = ContextProfileSchema.omit({
   id: true,
   createdAt: true,
@@ -91,3 +127,8 @@ export type AnswerRequest = z.infer<typeof AnswerRequestSchema>;
 export type AnswerResponse = z.infer<typeof AnswerResponseSchema>;
 export type MeetingSummaryRequest = z.infer<typeof MeetingSummaryRequestSchema>;
 export type MeetingSummaryResponse = z.infer<typeof MeetingSummaryResponseSchema>;
+export type UpsertCloudMeetingRequest = z.infer<typeof UpsertCloudMeetingRequestSchema>;
+export type CloudMeetingEntry = z.infer<typeof CloudMeetingEntrySchema>;
+export type CloudMeetingNote = z.infer<typeof CloudMeetingNoteSchema>;
+export type CloudMeetingListResponse = z.infer<typeof CloudMeetingListResponseSchema>;
+export type DeleteCloudMeetingResponse = z.infer<typeof DeleteCloudMeetingResponseSchema>;

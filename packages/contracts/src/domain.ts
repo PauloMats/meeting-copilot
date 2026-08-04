@@ -220,6 +220,7 @@ function uniqueNonEmpty(items: string[]): string[] {
 export const MeetingNoteDataSchema = z.object({
   schema_version: z.literal(1),
   meeting: z.object({
+    client_meeting_id: z.string().uuid().nullable().default(null),
     type: MeetingTypeSchema,
     name: z.string(),
     date: z.string(),
@@ -234,6 +235,18 @@ export const MeetingNoteDataSchema = z.object({
 });
 export type MeetingNoteData = z.infer<typeof MeetingNoteDataSchema>;
 
+export const MeetingNotePayloadSchema = z.object({
+  clientMeetingId: z.string().uuid().nullable().default(null),
+  transcript: z.string().min(1).max(200_000),
+  summary: MeetingResultSchema.nullable(),
+  meetingType: MeetingTypeSchema.default("general_meeting"),
+  ...MeetingContextSchema.shape,
+  language: z.string().min(2).max(10),
+  startedAt: z.string().datetime(),
+  endedAt: z.string().datetime()
+});
+export type MeetingNotePayload = z.infer<typeof MeetingNotePayloadSchema>;
+
 export const SavedMeetingNoteSchema = z.object({
   filePath: z.string().min(1)
 });
@@ -247,6 +260,7 @@ export type MeetingExportResult = z.infer<typeof MeetingExportResultSchema>;
 
 export interface SavedMeetingNoteEntry {
   filePath: string;
+  clientMeetingId: string | null;
   title: string;
   transcriptPreview: string;
   meetingType: MeetingType;
@@ -305,6 +319,7 @@ export const AppSettingsSchema = z.object({
   overlayOpacity: z.number().min(0.08).max(0.92).default(0.58),
   overlayTextTheme: OverlayTextThemeSchema.default("light"),
   overlayTextShadow: z.boolean().default(true),
+  cloudSyncEnabled: z.boolean().default(false),
   selectedContextProfileId: z.string().uuid().nullable().default(null)
 });
 export type AppSettings = z.infer<typeof AppSettingsSchema>;

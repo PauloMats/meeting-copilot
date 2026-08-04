@@ -111,6 +111,34 @@ export const meetingSessions = pgTable("meeting_sessions", {
   ...timestamps
 });
 
+export const cloudMeetingNotes = pgTable(
+  "cloud_meeting_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientMeetingId: uuid("client_meeting_id").notNull(),
+    title: varchar("title", { length: 240 }).notNull(),
+    meetingType: varchar("meeting_type", { length: 40 }).notNull(),
+    meetingName: varchar("meeting_name", { length: 160 }).notNull().default(""),
+    meetingDate: varchar("meeting_date", { length: 32 }).notNull().default(""),
+    language: varchar("language", { length: 10 }).notNull(),
+    transcript: text("transcript").notNull(),
+    summary: jsonb("summary").$type<Record<string, unknown> | null>(),
+    orderedParticipants: jsonb("ordered_participants").$type<string[]>().notNull().default([]),
+    speakerHints: jsonb("speaker_hints").$type<unknown[]>().notNull().default([]),
+    speakerSegments: jsonb("speaker_segments").$type<unknown[]>().notNull().default([]),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }).notNull(),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("cloud_meeting_notes_user_client_idx").on(table.userId, table.clientMeetingId),
+    index("cloud_meeting_notes_user_started_idx").on(table.userId, table.startedAt)
+  ]
+);
+
 export const meetingTurns = pgTable(
   "meeting_turns",
   {

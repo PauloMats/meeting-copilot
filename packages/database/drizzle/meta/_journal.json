@@ -8,6 +8,13 @@
       "when": 1782204544586,
       "tag": "0000_overrated_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785849218316,
+      "tag": "0001_cloud_meeting_notes",
+      "breakpoints": true
     }
   ]
 }

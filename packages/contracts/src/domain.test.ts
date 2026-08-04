@@ -16,6 +16,7 @@ describe("contracts", () => {
     expect(DEFAULT_SETTINGS.doNotSaveAudio).toBe(true);
     expect(DEFAULT_SETTINGS.autoSubmit).toBe(true);
     expect(DEFAULT_SETTINGS.audioRetentionDays).toBe(0);
+    expect(DEFAULT_SETTINGS.cloudSyncEnabled).toBe(false);
   });
 
   it("rejects incomplete answers", () => {

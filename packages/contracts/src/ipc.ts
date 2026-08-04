@@ -1,20 +1,21 @@
 import type {
   AnswerRequest,
   AnswerResponse,
+  CloudMeetingEntry,
+  CloudMeetingNote,
   MeetingSummaryRequest,
   MeetingSummaryResponse,
   RealtimeTokenRequest,
-  RealtimeTokenResponse
+  RealtimeTokenResponse,
+  UpsertCloudMeetingRequest
 } from "./api.js";
-import { z } from "zod";
 import {
-  MeetingContextSchema,
-  MeetingResultSchema,
-  MeetingTypeSchema,
+  MeetingNotePayloadSchema,
   type AppSettings,
   type CaptureState,
   type LoadedMeetingNote,
   type MeetingExportResult,
+  type MeetingNotePayload,
   type SavedMeetingNoteEntry,
   type SavedMeetingNote
 } from "./domain.js";
@@ -50,6 +51,11 @@ export const IPC_CHANNELS = {
   meetingNotesExportPdf: "meeting-notes:export-pdf",
   meetingNotesExportHtml: "meeting-notes:export-html",
   meetingNotesCopyFormatted: "meeting-notes:copy-formatted",
+  meetingNotesDelete: "meeting-notes:delete",
+  cloudMeetingsList: "cloud-meetings:list",
+  cloudMeetingsRead: "cloud-meetings:read",
+  cloudMeetingsUpsert: "cloud-meetings:upsert",
+  cloudMeetingsDelete: "cloud-meetings:delete",
   realtimeToken: "realtime:token",
   overlaySet: "overlay:set",
   windowMinimize: "window:minimize",
@@ -84,16 +90,8 @@ export interface TranscriptFinal {
   transcript: string;
 }
 
-export const SaveMeetingNoteRequestSchema = z.object({
-  transcript: z.string().min(1).max(200_000),
-  summary: MeetingResultSchema.nullable(),
-  meetingType: MeetingTypeSchema.default("general_meeting"),
-  ...MeetingContextSchema.shape,
-  language: z.string().min(2).max(10),
-  startedAt: z.string().datetime(),
-  endedAt: z.string().datetime()
-});
-export type SaveMeetingNoteRequest = z.infer<typeof SaveMeetingNoteRequestSchema>;
+export const SaveMeetingNoteRequestSchema = MeetingNotePayloadSchema;
+export type SaveMeetingNoteRequest = MeetingNotePayload;
 
 export interface CopilotApi {
   capture: {
@@ -116,6 +114,10 @@ export interface CopilotApi {
     createRealtimeToken(request: RealtimeTokenRequest): Promise<RealtimeTokenResponse>;
     generateAnswer(request: AnswerRequest): Promise<AnswerResponse>;
     generateMeetingSummary(request: MeetingSummaryRequest): Promise<MeetingSummaryResponse>;
+    listCloudMeetings(): Promise<CloudMeetingEntry[]>;
+    readCloudMeeting(id: string): Promise<CloudMeetingNote>;
+    upsertCloudMeeting(request: UpsertCloudMeetingRequest): Promise<CloudMeetingNote>;
+    deleteCloudMeeting(clientMeetingId: string): Promise<boolean>;
   };
   meetingNotes: {
     save(request: SaveMeetingNoteRequest): Promise<SavedMeetingNote>;
@@ -126,6 +128,7 @@ export interface CopilotApi {
     exportPdf(filePath: string): Promise<MeetingExportResult>;
     exportHtml(filePath: string): Promise<MeetingExportResult>;
     copyFormatted(filePath: string): Promise<MeetingExportResult>;
+    delete(filePath: string): Promise<void>;
   };
   window: {
     setOverlay(enabled: boolean): Promise<void>;

@@ -51,7 +51,12 @@ API_BASE_URL=http://127.0.0.1:3333
 
 Railway injects `PORT`; the API reads it automatically and binds to `0.0.0.0` when Railway
 environment variables are present. The Docker image runs database migrations before starting the
-Fastify server.
+Fastify server, including the `cloud_meeting_notes` migration used by optional meeting sync.
+
+`APP_USER_EMAIL` is the single-account scope for the current MVP. Desktop installations using the
+same API URL and `DESKTOP_API_KEY` see the same cloud meeting history. This is useful for personal
+multi-device synchronization, but it is not customer authentication or tenant isolation. Add real
+user sessions and per-user authorization before distributing one backend to unrelated customers.
 
 After deploy, validate:
 
@@ -98,6 +103,10 @@ setx DESKTOP_API_KEY "generate-a-long-random-secret"
 ```
 
 Close and reopen the desktop app after changing these values.
+
+Inside Smart Meeting Notes, enable **Salvar na nuvem** before recording. Stopping a recording still
+creates only a local safety draft; PostgreSQL is written after choosing **Salvar somente
+transcrição** or **Enviar para IA e resumir**.
 
 ## Landing page
 

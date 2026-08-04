@@ -22,6 +22,9 @@
 - [x] Click-to-start/click-to-finish long-form transcription
 - [x] Structured meeting summary, decisions and action-item extraction
 - [x] Transcript-first local Markdown persistence
+- [x] Explicit post-meeting save, summarize, or confirmed-delete decision
+- [x] Optional PostgreSQL meeting-note sync with cross-device restore
+- [x] Pending-meeting local and cloud deletion actions
 - [x] Unit/API tests and CI workflow
 
 ## Required before public production release
@@ -34,7 +37,7 @@
 - [ ] Finish document object storage, extraction, chunking, embeddings and indexing worker
 - [ ] Implement pgvector embedding query repository
 - [ ] Stream structured answer fields progressively to the renderer
-- [ ] Add transcript/session history and delete actions
+- [ ] Add authenticated account-wide history management and audited bulk deletion
 - [ ] Add scheduled retention enforcement and audited deletion
 - [ ] Persist meeting turns, normalized transcripts and answers through runtime services
 - [ ] Add reconnect/backoff, offline state and provider circuit breaking

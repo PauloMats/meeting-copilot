@@ -22,6 +22,10 @@ decisions, action items, owners, deadlines, next steps, and open questions.
 - A compact person-by-person Daily report with concise updates, blockers, and next steps.
 - Manual Daily speaker handoff during continuous recording, starting with `Pessoa 1`.
 - Daily review with editable participant names and transcript segments before the explicit AI call.
+- Post-meeting decision flow: save only the transcript, send it to AI for summarization, or delete
+  the local draft after an explicit confirmation.
+- Optional PostgreSQL cloud sync with a restore-on-this-device history. Cloud storage remains off by
+  default and only runs after the user confirms what to keep.
 - Dedicated structured AI prompts that do not invent owners, deadlines, decisions, or updates.
 - Automatic Markdown notes under the user's `Documents/Meeting Copilot` directory.
 - Structured JSON sidecars preserve the exact AI result locally for reuse without another AI call.
@@ -120,6 +124,8 @@ pnpm check
 - IPC request payloads are validated at the main-process boundary.
 - Audio is held in memory and not persisted.
 - Smart Meeting Notes persists text only; the audio capture is still discarded after transcription.
+- Cloud synchronization is opt-in. Deleting a pending meeting removes its local draft and its cloud
+  copy, if one was already created.
 - OpenAI Responses calls use `store: false`.
 - Logs redact authorization headers, tokens, and audio fields.
 
@@ -129,6 +135,10 @@ pnpm check
 - `POST /api/realtime/token`
 - `POST /api/answers`
 - `POST /api/meeting-summaries`
+- `GET /api/cloud-meetings`
+- `GET /api/cloud-meetings/:id`
+- `POST /api/cloud-meetings`
+- `DELETE /api/cloud-meetings/by-client/:clientMeetingId`
 - `GET|POST|PUT|DELETE /api/context-profiles`
 - `GET|POST|PUT|DELETE /api/glossary`
 - `POST /api/documents/upload`

@@ -298,6 +298,17 @@ select {
   accent-color: #54d9c0;
 }
 
+.cloud-sync-switch > span {
+  display: grid;
+  gap: 2px;
+}
+
+.cloud-sync-switch small {
+  color: #62738a;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
 .settings-panel {
   margin-top: 12px;
   padding: 0;
@@ -1268,8 +1279,7 @@ footer span::before {
   background: linear-gradient(135deg, rgba(13, 25, 35, 0.98), rgba(9, 16, 25, 0.98));
 }
 
-.daily-review-heading,
-.daily-review-submit {
+.daily-review-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1286,8 +1296,7 @@ footer span::before {
   font-size: 18px;
 }
 
-.daily-review-heading p:last-child,
-.daily-review-submit small {
+.daily-review-heading p:last-child {
   margin: 6px 0 0;
   color: #8193aa;
   font-size: 11px;
@@ -1358,18 +1367,112 @@ footer span::before {
   box-shadow: 0 0 0 3px rgba(84, 217, 192, 0.08);
 }
 
-.daily-review-submit {
+.daily-review-trust-note {
+  display: block;
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid #223043;
+  color: #8193aa;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
-.daily-review-submit small {
-  margin: 0;
+.post-meeting-decision {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 14px;
+  padding: 20px;
+  border: 1px solid rgba(84, 217, 192, 0.36);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(13, 28, 37, 0.98), rgba(8, 15, 24, 0.98));
 }
 
-.daily-review-submit button {
+.post-meeting-decision h2 {
+  margin-top: 5px;
+  color: #e8f2fb;
+  font-size: 18px;
+}
+
+.post-meeting-decision p:last-child {
+  max-width: 640px;
+  margin: 6px 0 0;
+  color: #8193aa;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.post-meeting-actions,
+.confirmation-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   flex: none;
+}
+
+.post-meeting-actions button {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.danger-button {
+  border: 1px solid rgba(229, 83, 105, 0.44);
+  color: #ff9cab;
+  background: rgba(229, 83, 105, 0.1);
+}
+
+.danger-button:hover:not(:disabled) {
+  border-color: rgba(229, 83, 105, 0.72);
+  background: rgba(229, 83, 105, 0.18);
+}
+
+.confirmation-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 7, 12, 0.76);
+  backdrop-filter: blur(8px);
+}
+
+.confirmation-dialog {
+  width: min(440px, 100%);
+  padding: 24px;
+  border: 1px solid #344056;
+  border-radius: 16px;
+  background: #101722;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.confirmation-dialog h2 {
+  margin-top: 7px;
+  color: #f3f6fb;
+  font-size: 20px;
+}
+
+.confirmation-dialog > p:last-of-type {
+  margin: 10px 0 0;
+  color: #94a3b7;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.confirmation-actions {
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+.cloud-meeting-history {
+  border-color: rgba(84, 217, 192, 0.2);
+  background: linear-gradient(135deg, rgba(11, 22, 31, 0.9), rgba(8, 14, 23, 0.9));
+}
+
+.saved-transcript-title .cloud-badge {
+  color: #8be8d7;
+  background: rgba(84, 217, 192, 0.11);
 }
 
 .saved-transcripts {
@@ -2110,9 +2213,15 @@ footer span::before {
   }
 
   .daily-review-heading,
-  .daily-review-submit {
+  .post-meeting-decision,
+  .post-meeting-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .post-meeting-actions,
+  .post-meeting-actions button {
+    width: 100%;
   }
 
   .speaker-hint-row {

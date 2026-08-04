@@ -2,7 +2,9 @@ import {
   DEFAULT_SETTINGS,
   type AppSettings,
   type CaptureState,
+  type CloudMeetingEntry,
   type MeetingContext,
+  type MeetingNotePayload,
   type MeetingResult,
   type MeetingType,
   type SavedMeetingNoteEntry,
@@ -53,9 +55,13 @@ export function useMeetingNotes() {
   const [audioLevels, setAudioLevels] = useState<AudioLevels>(EMPTY_AUDIO_LEVELS);
   const [savedNotes, setSavedNotes] = useState<SavedMeetingNoteEntry[]>([]);
   const [isLoadingSavedNotes, setIsLoadingSavedNotes] = useState(true);
+  const [cloudMeetings, setCloudMeetings] = useState<CloudMeetingEntry[]>([]);
+  const [isLoadingCloudMeetings, setIsLoadingCloudMeetings] = useState(false);
+  const [restoringCloudMeetingId, setRestoringCloudMeetingId] = useState<string | null>(null);
   const [retryingPath, setRetryingPath] = useState<string | null>(null);
   const [dailySegments, setDailySegments] = useState<SpeakerSegment[]>([]);
   const [isDailyReviewPending, setIsDailyReviewPending] = useState(false);
+  const [isPostMeetingDecisionPending, setIsPostMeetingDecisionPending] = useState(false);
   const capture = useRef(new AudioCapture());
   const transcriptRef = useRef("");
   const startedAt = useRef<string | null>(null);
@@ -67,6 +73,7 @@ export function useMeetingNotes() {
   const dailySegmentsRef = useRef<SpeakerSegment[]>([]);
   const activeDailySegmentRef = useRef(0);
   const endedAtRef = useRef<string | null>(null);
+  const clientMeetingIdRef = useRef<string | null>(null);
 
   const refreshSavedNotes = useCallback(async () => {
     setIsLoadingSavedNotes(true);
@@ -79,10 +86,26 @@ export function useMeetingNotes() {
     }
   }, []);
 
+  const refreshCloudMeetings = useCallback(async () => {
+    setIsLoadingCloudMeetings(true);
+    try {
+      setCloudMeetings(await window.copilot.backend.listCloudMeetings());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load cloud meetings");
+    } finally {
+      setIsLoadingCloudMeetings(false);
+    }
+  }, []);
+
   useEffect(() => {
     void window.copilot.settings.get().then(setSettings);
     void refreshSavedNotes();
   }, [refreshSavedNotes]);
+
+  useEffect(() => {
+    if (settings.cloudSyncEnabled) void refreshCloudMeetings();
+    else setCloudMeetings([]);
+  }, [refreshCloudMeetings, settings.cloudSyncEnabled]);
 
   useEffect(() => {
     if (!isRecording || isPaused) return;
@@ -90,77 +113,7 @@ export function useMeetingNotes() {
     return () => window.clearInterval(timer);
   }, [isPaused, isRecording]);
 
-  const finalizeGeneralMeeting = useCallback(
-    async (value: string) => {
-      if (finalizationStarted.current) return;
-      finalizationStarted.current = true;
-      if (finalizationTimer.current !== null) {
-        window.clearTimeout(finalizationTimer.current);
-        finalizationTimer.current = null;
-      }
-      const trimmed = value.trim();
-      const recordingStartedAt = startedAt.current;
-      if (!trimmed || !recordingStartedAt) {
-        setError("No speech was detected in this recording.");
-        setState("error");
-        return;
-      }
-
-      const endedAt = new Date().toISOString();
-      const meetingSetup = meetingSetupRef.current;
-      setState("thinking");
-      let draftSaved = false;
-      try {
-        const saved = await window.copilot.meetingNotes.save({
-          transcript: trimmed,
-          summary: null,
-          ...meetingSetup,
-          language: settings.language,
-          startedAt: recordingStartedAt,
-          endedAt
-        });
-        setSavedPath(saved.filePath);
-        setSavedNoticeVisible(true);
-        draftSaved = true;
-        await refreshSavedNotes();
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Could not save the transcript");
-      }
-
-      try {
-        const response = await window.copilot.backend.generateMeetingSummary({
-          transcript: trimmed,
-          intelligenceLevel: settings.intelligenceLevel,
-          language: settings.language,
-          ...meetingSetup
-        });
-        setSummary(response.summary);
-        setSummaryMeetingType(response.meetingType);
-        setSummaryExportReady(false);
-        const saved = await window.copilot.meetingNotes.save({
-          transcript: trimmed,
-          summary: response.summary,
-          ...meetingSetup,
-          language: settings.language,
-          startedAt: recordingStartedAt,
-          endedAt
-        });
-        setSavedPath(saved.filePath);
-        setSavedNoticeVisible(true);
-        setSummaryExportReady(true);
-        await refreshSavedNotes();
-        setError(null);
-        setState("idle");
-      } catch (cause) {
-        const message = cause instanceof Error ? cause.message : "Meeting summary failed";
-        setError(draftSaved ? `${message} The transcript was saved.` : message);
-        setState("error");
-      }
-    },
-    [refreshSavedNotes, settings.intelligenceLevel, settings.language]
-  );
-
-  const prepareDailyReview = useCallback(
+  const preparePostMeetingDecision = useCallback(
     async (value: string) => {
       if (finalizationStarted.current) return;
       finalizationStarted.current = true;
@@ -181,35 +134,37 @@ export function useMeetingNotes() {
         return;
       }
 
-      const reconciled = reconcileFinalTranscript(dailySegmentsRef.current, value)
-        .map((segment) => ({ ...segment, transcript: segment.transcript.trim() }))
-        .filter((segment) => Boolean(segment.transcript));
-      const reviewSegments = reconciled.length
-        ? reconciled.map((segment, index) => ({ ...segment, position: index + 1 }))
-        : [{ ...createSpeakerSegment(1), transcript: trimmed }];
       const endedAt = new Date().toISOString();
       endedAtRef.current = endedAt;
-      dailySegmentsRef.current = reviewSegments;
-      setDailySegments(reviewSegments);
-      setIsDailyReviewPending(true);
+      const isDaily = meetingSetupRef.current.meetingType === "daily";
+      if (isDaily) {
+        const reconciled = reconcileFinalTranscript(dailySegmentsRef.current, value)
+          .map((segment) => ({ ...segment, transcript: segment.transcript.trim() }))
+          .filter((segment) => Boolean(segment.transcript));
+        const reviewSegments = reconciled.length
+          ? reconciled.map((segment, index) => ({ ...segment, position: index + 1 }))
+          : [{ ...createSpeakerSegment(1), transcript: trimmed }];
+        dailySegmentsRef.current = reviewSegments;
+        setDailySegments(reviewSegments);
+        setIsDailyReviewPending(true);
+      }
+      setIsPostMeetingDecisionPending(true);
 
-      const preparedSegments = prepareSpeakerSegments(reviewSegments, settings.language === "pt");
-      const meetingSetup = {
-        ...meetingSetupRef.current,
-        orderedParticipants: preparedSegments.map((segment) => segment.participant),
-        speakerHints: [],
-        speakerSegments: preparedSegments
-      };
-      meetingSetupRef.current = meetingSetup;
+      const payload = buildMeetingPayload({
+        transcript: trimmed,
+        summary: null,
+        setup: meetingSetupRef.current,
+        segments: dailySegmentsRef.current,
+        clientMeetingId: clientMeetingIdRef.current,
+        language: settings.language,
+        startedAt: recordingStartedAt,
+        endedAt
+      });
+      meetingSetupRef.current = meetingSetupFromPayload(payload);
 
       try {
         const saved = await window.copilot.meetingNotes.save({
-          transcript: renderSegmentedTranscript(preparedSegments),
-          summary: null,
-          ...meetingSetup,
-          language: settings.language,
-          startedAt: recordingStartedAt,
-          endedAt
+          ...payload
         });
         setSavedPath(saved.filePath);
         setSavedNoticeVisible(true);
@@ -218,97 +173,218 @@ export function useMeetingNotes() {
         setState("ready_to_send");
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Could not save the transcript");
-        setState("error");
+        setState("ready_to_send");
       }
     },
     [refreshSavedNotes, settings.language]
   );
 
   const completeRecording = useCallback(
-    (value: string) =>
-      meetingSetupRef.current.meetingType === "daily"
-        ? prepareDailyReview(value)
-        : finalizeGeneralMeeting(value),
-    [finalizeGeneralMeeting, prepareDailyReview]
+    (value: string) => preparePostMeetingDecision(value),
+    [preparePostMeetingDecision]
   );
 
-  const submitDailySummary = useCallback(async () => {
-    if (!isDailyReviewPending || state === "thinking") return;
+  const saveTranscriptOnly = useCallback(async () => {
+    if (!isPostMeetingDecisionPending || state === "thinking") return;
     const recordingStartedAt = startedAt.current;
     const endedAt = endedAtRef.current;
     if (!recordingStartedAt || !endedAt) return;
-
-    const preparedSegments = prepareSpeakerSegments(
-      dailySegmentsRef.current,
-      settings.language === "pt"
-    );
-    if (!preparedSegments.length) {
-      setError(
-        settings.language === "pt"
-          ? "Revise a transcrição antes de enviar."
-          : "Review the transcript before sending."
-      );
-      return;
-    }
-
-    const transcript = renderSegmentedTranscript(preparedSegments);
-    const meetingSetup = {
-      ...meetingSetupRef.current,
-      orderedParticipants: preparedSegments.map((segment) => segment.participant),
-      speakerHints: [],
-      speakerSegments: preparedSegments
-    };
-    meetingSetupRef.current = meetingSetup;
+    const payload = buildMeetingPayload({
+      transcript: transcriptRef.current,
+      summary: null,
+      setup: meetingSetupRef.current,
+      segments: dailySegmentsRef.current,
+      clientMeetingId: clientMeetingIdRef.current,
+      language: settings.language,
+      startedAt: recordingStartedAt,
+      endedAt
+    });
     setState("thinking");
     setError(null);
 
     try {
-      const response = await window.copilot.backend.generateMeetingSummary({
-        transcript,
-        intelligenceLevel: settings.intelligenceLevel,
-        language: settings.language,
-        ...meetingSetup
-      });
-      const request = {
-        transcript,
-        summary: response.summary,
-        ...meetingSetup,
-        language: settings.language,
-        startedAt: recordingStartedAt,
-        endedAt
-      };
       const saved = savedPath
-        ? await window.copilot.meetingNotes.update(savedPath, request)
-        : await window.copilot.meetingNotes.save(request);
+        ? await window.copilot.meetingNotes.update(savedPath, payload)
+        : await window.copilot.meetingNotes.save(payload);
       setSavedPath(saved.filePath);
       setSavedNoticeVisible(true);
+      let cloudError: string | null = null;
+      if (settings.cloudSyncEnabled && payload.clientMeetingId) {
+        try {
+          await window.copilot.backend.upsertCloudMeeting({
+            ...payload,
+            clientMeetingId: payload.clientMeetingId
+          });
+          await refreshCloudMeetings();
+        } catch (cause) {
+          cloudError = cause instanceof Error ? cause.message : "Cloud sync failed";
+        }
+      }
+      setSummary(null);
+      setSummaryExportReady(false);
+      setIsDailyReviewPending(false);
+      setIsPostMeetingDecisionPending(false);
+      await refreshSavedNotes();
+      setError(cloudError);
+      setState("idle");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save the transcript");
+      setState("ready_to_send");
+    }
+  }, [
+    isPostMeetingDecisionPending,
+    refreshCloudMeetings,
+    refreshSavedNotes,
+    savedPath,
+    settings.cloudSyncEnabled,
+    settings.language,
+    state
+  ]);
+
+  const submitMeetingSummary = useCallback(async () => {
+    if (!isPostMeetingDecisionPending || state === "thinking") return;
+    const recordingStartedAt = startedAt.current;
+    const endedAt = endedAtRef.current;
+    if (!recordingStartedAt || !endedAt) return;
+
+    const draft = buildMeetingPayload({
+      transcript: transcriptRef.current,
+      summary: null,
+      setup: meetingSetupRef.current,
+      segments: dailySegmentsRef.current,
+      clientMeetingId: clientMeetingIdRef.current,
+      language: settings.language,
+      startedAt: recordingStartedAt,
+      endedAt
+    });
+    if (!draft.transcript.trim()) {
+      setError(settings.language === "pt" ? "Revise a transcrição." : "Review the transcript.");
+      return;
+    }
+    meetingSetupRef.current = meetingSetupFromPayload(draft);
+    setState("thinking");
+    setError(null);
+
+    try {
+      const localDraft = savedPath
+        ? await window.copilot.meetingNotes.update(savedPath, draft)
+        : await window.copilot.meetingNotes.save(draft);
+      setSavedPath(localDraft.filePath);
+      setSavedNoticeVisible(true);
+
+      let cloudError: string | null = null;
+      if (settings.cloudSyncEnabled && draft.clientMeetingId) {
+        try {
+          await window.copilot.backend.upsertCloudMeeting({
+            ...draft,
+            clientMeetingId: draft.clientMeetingId
+          });
+        } catch (cause) {
+          cloudError = cause instanceof Error ? cause.message : "Cloud sync failed";
+        }
+      }
+
+      const response = await window.copilot.backend.generateMeetingSummary({
+        transcript: draft.transcript,
+        intelligenceLevel: settings.intelligenceLevel,
+        language: settings.language,
+        meetingType: draft.meetingType,
+        meetingName: draft.meetingName,
+        meetingDate: draft.meetingDate,
+        orderedParticipants: draft.orderedParticipants,
+        speakerHints: draft.speakerHints,
+        speakerSegments: draft.speakerSegments
+      });
+      const completed = { ...draft, summary: response.summary };
+      await window.copilot.meetingNotes.update(localDraft.filePath, completed);
+      if (settings.cloudSyncEnabled && completed.clientMeetingId) {
+        try {
+          await window.copilot.backend.upsertCloudMeeting({
+            ...completed,
+            clientMeetingId: completed.clientMeetingId
+          });
+          await refreshCloudMeetings();
+          cloudError = null;
+        } catch (cause) {
+          cloudError = cause instanceof Error ? cause.message : "Cloud sync failed";
+        }
+      }
       setSummary(response.summary);
       setSummaryMeetingType(response.meetingType);
       setSummaryExportReady(true);
       setIsDailyReviewPending(false);
+      setIsPostMeetingDecisionPending(false);
       await refreshSavedNotes();
+      setError(cloudError);
       setState("idle");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Meeting summary failed";
       setError(
         settings.language === "pt"
-          ? `${message} A transcrição revisada continua salva.`
-          : `${message} The reviewed transcript remains saved.`
+          ? `${message} A transcrição continua salva localmente.`
+          : `${message} The transcript remains saved locally.`
       );
-      setState("error");
+      setState("ready_to_send");
     }
   }, [
-    isDailyReviewPending,
+    isPostMeetingDecisionPending,
+    refreshCloudMeetings,
     refreshSavedNotes,
     savedPath,
+    settings.cloudSyncEnabled,
     settings.intelligenceLevel,
     settings.language,
     state
   ]);
 
+  const discardMeeting = useCallback(async () => {
+    if (!isPostMeetingDecisionPending || state === "thinking") return;
+    setState("thinking");
+    setError(null);
+    const currentPath = savedPath;
+    const clientMeetingId = clientMeetingIdRef.current;
+    try {
+      if (currentPath) await window.copilot.meetingNotes.delete(currentPath);
+      if (clientMeetingId && settings.cloudSyncEnabled) {
+        await window.copilot.backend.deleteCloudMeeting(clientMeetingId);
+      }
+      transcriptRef.current = "";
+      dailySegmentsRef.current = [];
+      clientMeetingIdRef.current = null;
+      startedAt.current = null;
+      endedAtRef.current = null;
+      setTranscript("");
+      setDailySegments([]);
+      setSummary(null);
+      setSummaryExportReady(false);
+      setSavedPath(null);
+      setSavedNoticeVisible(false);
+      setIsDailyReviewPending(false);
+      setIsPostMeetingDecisionPending(false);
+      await refreshSavedNotes();
+      if (settings.cloudSyncEnabled) await refreshCloudMeetings();
+      setState("idle");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not delete the meeting");
+      setState("ready_to_send");
+    }
+  }, [
+    isPostMeetingDecisionPending,
+    refreshCloudMeetings,
+    refreshSavedNotes,
+    savedPath,
+    settings.cloudSyncEnabled,
+    state
+  ]);
+
   const startRecording = useCallback(
     async (meetingSetup: MeetingRecordingSetup) => {
-      if (startInFlight.current || isRecording || isDailyReviewPending || state === "thinking") {
+      if (
+        startInFlight.current ||
+        isRecording ||
+        isPostMeetingDecisionPending ||
+        state === "thinking"
+      ) {
         return;
       }
       startInFlight.current = true;
@@ -324,6 +400,7 @@ export function useMeetingNotes() {
       setSavedPath(null);
       setSavedNoticeVisible(false);
       setIsDailyReviewPending(false);
+      setIsPostMeetingDecisionPending(false);
       setError(null);
       setAudioLevels({
         system: 0,
@@ -332,6 +409,7 @@ export function useMeetingNotes() {
       finalizationStarted.current = false;
       startedAt.current = new Date().toISOString();
       endedAtRef.current = null;
+      clientMeetingIdRef.current = window.crypto.randomUUID();
       const initialDailySegments =
         meetingSetup.meetingType === "daily" ? [createSpeakerSegment(1)] : [];
       dailySegmentsRef.current = initialDailySegments;
@@ -366,7 +444,13 @@ export function useMeetingNotes() {
         startInFlight.current = false;
       }
     },
-    [isDailyReviewPending, isRecording, settings.includeMicrophone, settings.language, state]
+    [
+      isPostMeetingDecisionPending,
+      isRecording,
+      settings.includeMicrophone,
+      settings.language,
+      state
+    ]
   );
 
   const stopRecording = useCallback(async () => {
@@ -450,6 +534,8 @@ export function useMeetingNotes() {
     setIsRecording(false);
     setIsPaused(false);
     setIsDailyReviewPending(false);
+    setIsPostMeetingDecisionPending(false);
+    clientMeetingIdRef.current = null;
     dailySegmentsRef.current = [];
     setDailySegments([]);
     setState("idle");
@@ -467,6 +553,7 @@ export function useMeetingNotes() {
       setError(null);
       try {
         const saved = await window.copilot.meetingNotes.read(entry.filePath);
+        const clientMeetingId = saved.clientMeetingId ?? window.crypto.randomUUID();
         setTranscript(saved.transcript);
         transcriptRef.current = saved.transcript;
         const response = await window.copilot.backend.generateMeetingSummary({
@@ -480,7 +567,8 @@ export function useMeetingNotes() {
           speakerHints: saved.speakerHints,
           speakerSegments: saved.speakerSegments
         });
-        await window.copilot.meetingNotes.update(entry.filePath, {
+        const completed = {
+          clientMeetingId,
           transcript: saved.transcript,
           summary: response.summary,
           meetingType: saved.meetingType,
@@ -492,7 +580,12 @@ export function useMeetingNotes() {
           language: saved.language,
           startedAt: saved.startedAt,
           endedAt: saved.endedAt
-        });
+        };
+        await window.copilot.meetingNotes.update(entry.filePath, completed);
+        if (settings.cloudSyncEnabled) {
+          await window.copilot.backend.upsertCloudMeeting(completed);
+          await refreshCloudMeetings();
+        }
         setSummary(response.summary);
         setSummaryMeetingType(response.meetingType);
         setSummaryExportReady(true);
@@ -512,12 +605,63 @@ export function useMeetingNotes() {
     },
     [
       isRecording,
+      refreshCloudMeetings,
       refreshSavedNotes,
       retryingPath,
+      settings.cloudSyncEnabled,
       settings.intelligenceLevel,
       settings.language,
       state
     ]
+  );
+
+  const restoreCloudMeeting = useCallback(
+    async (entry: CloudMeetingEntry) => {
+      if (
+        isRecording ||
+        isPostMeetingDecisionPending ||
+        restoringCloudMeetingId ||
+        state === "thinking"
+      ) {
+        return;
+      }
+      setRestoringCloudMeetingId(entry.id);
+      setState("thinking");
+      setError(null);
+      try {
+        const cloud = await window.copilot.backend.readCloudMeeting(entry.id);
+        const payload: MeetingNotePayload = {
+          clientMeetingId: cloud.clientMeetingId,
+          transcript: cloud.transcript,
+          summary: cloud.summary,
+          meetingType: cloud.meetingType,
+          meetingName: cloud.meetingName,
+          meetingDate: cloud.meetingDate,
+          orderedParticipants: cloud.orderedParticipants,
+          speakerHints: cloud.speakerHints,
+          speakerSegments: cloud.speakerSegments,
+          language: cloud.language,
+          startedAt: cloud.startedAt,
+          endedAt: cloud.endedAt
+        };
+        const saved = await window.copilot.meetingNotes.save(payload);
+        setSavedPath(saved.filePath);
+        setSavedNoticeVisible(true);
+        setTranscript(cloud.transcript);
+        transcriptRef.current = cloud.transcript;
+        setSummary(cloud.summary);
+        setSummaryMeetingType(cloud.meetingType);
+        setSummaryExportReady(cloud.summary !== null);
+        await refreshSavedNotes();
+        setState("idle");
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Could not restore cloud meeting");
+        setState("error");
+      } finally {
+        setRestoringCloudMeetingId(null);
+      }
+    },
+    [isPostMeetingDecisionPending, isRecording, refreshSavedNotes, restoringCloudMeetingId, state]
   );
 
   useEffect(() => {
@@ -600,22 +744,89 @@ export function useMeetingNotes() {
     audioLevels,
     savedNotes,
     isLoadingSavedNotes,
+    cloudMeetings,
+    isLoadingCloudMeetings,
+    restoringCloudMeetingId,
     retryingPath,
     dailySegments,
     activeDailySegmentIndex: activeDailySegmentRef.current,
     isDailyReviewPending,
+    isPostMeetingDecisionPending,
     startRecording,
     stopRecording,
     nextDailySpeaker,
     updateDailySegment,
-    submitDailySummary,
+    saveTranscriptOnly,
+    submitMeetingSummary,
+    discardMeeting,
     pauseRecording,
     resumeRecording,
     retrySavedNote,
+    restoreCloudMeeting,
     refreshSavedNotes,
+    refreshCloudMeetings,
     dismissSavedPath: () => setSavedNoticeVisible(false),
     cancel,
     updateSettings
+  };
+}
+
+function buildMeetingPayload({
+  transcript,
+  summary,
+  setup,
+  segments,
+  clientMeetingId,
+  language,
+  startedAt,
+  endedAt
+}: {
+  transcript: string;
+  summary: MeetingResult | null;
+  setup: MeetingRecordingSetup;
+  segments: SpeakerSegment[];
+  clientMeetingId: string | null;
+  language: string;
+  startedAt: string;
+  endedAt: string;
+}): MeetingNotePayload {
+  if (setup.meetingType !== "daily") {
+    return {
+      clientMeetingId,
+      transcript: transcript.trim(),
+      summary,
+      ...setup,
+      language,
+      startedAt,
+      endedAt
+    };
+  }
+
+  const preparedSegments = prepareSpeakerSegments(segments, language === "pt");
+  return {
+    clientMeetingId,
+    transcript: preparedSegments.length
+      ? renderSegmentedTranscript(preparedSegments)
+      : transcript.trim(),
+    summary,
+    ...setup,
+    orderedParticipants: preparedSegments.map((segment) => segment.participant),
+    speakerHints: [],
+    speakerSegments: preparedSegments,
+    language,
+    startedAt,
+    endedAt
+  };
+}
+
+function meetingSetupFromPayload(payload: MeetingNotePayload): MeetingRecordingSetup {
+  return {
+    meetingType: payload.meetingType,
+    meetingName: payload.meetingName,
+    meetingDate: payload.meetingDate,
+    orderedParticipants: payload.orderedParticipants,
+    speakerHints: payload.speakerHints,
+    speakerSegments: payload.speakerSegments
   };
 }
 

@@ -42,7 +42,12 @@ const api: CopilotApi = {
     createRealtimeToken: (request) => ipcRenderer.invoke(IPC_CHANNELS.realtimeToken, request),
     generateAnswer: (request) => ipcRenderer.invoke(IPC_CHANNELS.answerGenerate, request),
     generateMeetingSummary: (request) =>
-      ipcRenderer.invoke(IPC_CHANNELS.meetingSummaryGenerate, request)
+      ipcRenderer.invoke(IPC_CHANNELS.meetingSummaryGenerate, request),
+    listCloudMeetings: () => ipcRenderer.invoke(IPC_CHANNELS.cloudMeetingsList),
+    readCloudMeeting: (id) => ipcRenderer.invoke(IPC_CHANNELS.cloudMeetingsRead, id),
+    upsertCloudMeeting: (request) => ipcRenderer.invoke(IPC_CHANNELS.cloudMeetingsUpsert, request),
+    deleteCloudMeeting: (clientMeetingId) =>
+      ipcRenderer.invoke(IPC_CHANNELS.cloudMeetingsDelete, clientMeetingId)
   },
   meetingNotes: {
     save: (request) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesSave, request),
@@ -54,7 +59,8 @@ const api: CopilotApi = {
     exportPdf: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesExportPdf, filePath),
     exportHtml: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesExportHtml, filePath),
     copyFormatted: (filePath) =>
-      ipcRenderer.invoke(IPC_CHANNELS.meetingNotesCopyFormatted, filePath)
+      ipcRenderer.invoke(IPC_CHANNELS.meetingNotesCopyFormatted, filePath),
+    delete: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesDelete, filePath)
   },
   window: {
     setOverlay: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.overlaySet, enabled),

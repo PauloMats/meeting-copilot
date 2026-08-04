@@ -18,14 +18,19 @@ import {
   MeetingTypeSchema,
   simplifyDailyResult
 } from "@meeting-copilot/contracts";
-import { mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
+import { z } from "zod";
 
 const NoteMetadataSchema = MeetingContextSchema.extend({
+  clientMeetingId: z.string().uuid().nullable().default(null),
   meetingType: MeetingTypeSchema.default("general_meeting")
 });
 
-type NoteMetadata = MeetingContext & { meetingType: MeetingType };
+type NoteMetadata = MeetingContext & {
+  clientMeetingId: string | null;
+  meetingType: MeetingType;
+};
 
 export class MeetingNotesService {
   private readonly notesDirectory: string;
@@ -43,6 +48,16 @@ export class MeetingNotesService {
   async update(filePath: string, request: SaveMeetingNoteRequest): Promise<SavedMeetingNote> {
     if (!this.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
     return this.write(filePath, request);
+  }
+
+  async delete(filePath: string): Promise<void> {
+    if (!this.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
+    await Promise.all([
+      rm(filePath, { force: true }),
+      rm(dataFilePathFor(filePath), { force: true }),
+      rm(`${filePath}.tmp`, { force: true }),
+      rm(`${dataFilePathFor(filePath)}.tmp`, { force: true })
+    ]);
   }
 
   private async write(
@@ -157,6 +172,7 @@ function renderMeetingNote(request: SaveMeetingNoteRequest): string {
 function renderMetadata(request: SaveMeetingNoteRequest): string {
   return `<!-- meeting-copilot-metadata: ${JSON.stringify({
     version: 2,
+    clientMeetingId: request.clientMeetingId,
     meetingType: request.meetingType,
     meetingName: request.meetingName,
     meetingDate: request.meetingDate,
@@ -170,6 +186,7 @@ function renderStructuredData(request: SaveMeetingNoteRequest): string {
   const data = MeetingNoteDataSchema.parse({
     schema_version: 1,
     meeting: {
+      client_meeting_id: request.clientMeetingId,
       type: request.meetingType,
       name: request.meetingName,
       date: request.meetingDate,
@@ -188,6 +205,7 @@ function renderStructuredData(request: SaveMeetingNoteRequest): string {
 function toSavedMeetingNoteEntry(note: LoadedMeetingNote): SavedMeetingNoteEntry {
   return {
     filePath: note.filePath,
+    clientMeetingId: note.clientMeetingId,
     title: note.title,
     transcriptPreview: note.transcriptPreview,
     meetingType: note.meetingType,
@@ -226,6 +244,7 @@ function parseMeetingNote(
   const structuredMeeting = structuredData?.meeting;
   return {
     filePath,
+    clientMeetingId: structuredMeeting?.client_meeting_id ?? metadata.clientMeetingId,
     title,
     transcript,
     transcriptPreview: transcript.replace(/\s+/g, " ").slice(0, 180),

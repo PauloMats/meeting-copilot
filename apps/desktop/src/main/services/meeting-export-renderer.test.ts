@@ -5,6 +5,7 @@ import { renderMeetingExport } from "./meeting-export-renderer.js";
 const baseNote: Omit<LoadedMeetingNote, "meetingType" | "structuredResult"> = {
   filePath: "/tmp/Meeting Copilot/meeting.md",
   dataFilePath: "/tmp/Meeting Copilot/meeting.json",
+  clientMeetingId: null,
   title: "Ata",
   transcript: "Transcrição completa.",
   transcriptPreview: "Transcrição completa.",

@@ -17,6 +17,7 @@ describe("MeetingNotesService", () => {
     testDirectory = await mkdtemp(join(tmpdir(), "meeting-copilot-"));
     const service = new MeetingNotesService(testDirectory);
     const baseRequest = {
+      clientMeetingId: "6d47f399-4ee4-4f79-a7b8-1b5d68e9ed9e",
       transcript: "Ana will prepare the release notes by Friday.",
       meetingType: "general_meeting" as const,
       meetingName: "",
@@ -73,10 +74,36 @@ describe("MeetingNotesService", () => {
     expect(service.isManagedFile(completed.filePath)).toBe(true);
   });
 
+  it("deletes both the local Markdown draft and its structured sidecar", async () => {
+    testDirectory = await mkdtemp(join(tmpdir(), "meeting-copilot-"));
+    const service = new MeetingNotesService(testDirectory);
+    const saved = await service.save({
+      clientMeetingId: "1efe8e04-12f8-4368-9151-ac7b64d55f9e",
+      transcript: "Rascunho que deve ser apagado.",
+      summary: null,
+      meetingType: "general_meeting",
+      meetingName: "",
+      meetingDate: "",
+      orderedParticipants: [],
+      speakerHints: [],
+      speakerSegments: [],
+      language: "pt",
+      startedAt: "2026-08-04T12:00:00.000Z",
+      endedAt: "2026-08-04T12:05:00.000Z"
+    });
+    const dataFilePath = saved.filePath.replace(/\.md$/, ".json");
+
+    await service.delete(saved.filePath);
+
+    await expect(readFile(saved.filePath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(dataFilePath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("lists saved transcripts and reads the full transcript for retry", async () => {
     testDirectory = await mkdtemp(join(tmpdir(), "meeting-copilot-"));
     const service = new MeetingNotesService(testDirectory);
     const first = await service.save({
+      clientMeetingId: null,
       transcript: "Primeira transcrição sem resumo.",
       summary: null,
       meetingType: "general_meeting",
@@ -90,6 +117,7 @@ describe("MeetingNotesService", () => {
       endedAt: "2026-07-17T12:10:00.000Z"
     });
     await service.save({
+      clientMeetingId: null,
       transcript: "Second transcript.",
       summary: {
         title: "Second meeting",
@@ -166,6 +194,7 @@ describe("MeetingNotesService", () => {
     });
 
     await service.update(filePath, {
+      clientMeetingId: null,
       transcript: "Uma transcrição antiga.",
       summary: {
         title: "Resumo recuperado",
@@ -204,6 +233,7 @@ describe("MeetingNotesService", () => {
     testDirectory = await mkdtemp(join(tmpdir(), "meeting-copilot-"));
     const service = new MeetingNotesService(testDirectory);
     const saved = await service.save({
+      clientMeetingId: "bca9945d-3e2a-4edf-a4a5-fc16df3ec8a8",
       transcript: "Igor está aguardando uma rota do Victor.",
       summary: {
         title: "Daily Dourado — 23/07/2026",

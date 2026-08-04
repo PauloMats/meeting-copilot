@@ -3,6 +3,7 @@ import {
   AnswerRequestSchema,
   MeetingSummaryRequestSchema,
   SaveMeetingNoteRequestSchema,
+  UpsertCloudMeetingRequestSchema,
   type AppSettings,
   type CaptureState,
   RealtimeTokenRequestSchema
@@ -11,6 +12,7 @@ import { config as loadEnvironment } from "dotenv";
 import { app, BrowserWindow, ipcMain, Menu, screen, shell } from "electron";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { z } from "zod";
 import { ApiClient } from "./services/api-client.js";
 import { HotkeyService } from "./services/hotkey-service.js";
 import { MeetingExportService } from "./services/meeting-export-service.js";
@@ -99,6 +101,16 @@ function registerIpc(
   ipcMain.handle(IPC_CHANNELS.meetingSummaryGenerate, (_event, request: unknown) =>
     apiClient.generateMeetingSummary(MeetingSummaryRequestSchema.parse(request))
   );
+  ipcMain.handle(IPC_CHANNELS.cloudMeetingsList, () => apiClient.listCloudMeetings());
+  ipcMain.handle(IPC_CHANNELS.cloudMeetingsRead, (_event, id: unknown) =>
+    apiClient.readCloudMeeting(z.string().uuid().parse(id))
+  );
+  ipcMain.handle(IPC_CHANNELS.cloudMeetingsUpsert, (_event, request: unknown) =>
+    apiClient.upsertCloudMeeting(UpsertCloudMeetingRequestSchema.parse(request))
+  );
+  ipcMain.handle(IPC_CHANNELS.cloudMeetingsDelete, (_event, clientMeetingId: unknown) =>
+    apiClient.deleteCloudMeeting(z.string().uuid().parse(clientMeetingId))
+  );
   ipcMain.handle(IPC_CHANNELS.meetingNotesSave, (_event, request: unknown) =>
     meetingNotes.save(SaveMeetingNoteRequestSchema.parse(request))
   );
@@ -127,6 +139,10 @@ function registerIpc(
   ipcMain.handle(IPC_CHANNELS.meetingNotesCopyFormatted, (_event, filePath: string) => {
     if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
     return meetingExports.copyFormatted(filePath);
+  });
+  ipcMain.handle(IPC_CHANNELS.meetingNotesDelete, (_event, filePath: string) => {
+    if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
+    return meetingNotes.delete(filePath);
   });
   ipcMain.handle(IPC_CHANNELS.overlaySet, (_event, enabled: boolean) => {
     setOverlayMode(enabled);

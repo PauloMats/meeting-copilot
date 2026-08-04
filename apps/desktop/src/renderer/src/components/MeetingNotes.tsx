@@ -1,4 +1,9 @@
-import type { AudioDevice, MeetingType, SpeakerSegment } from "@meeting-copilot/contracts";
+import type {
+  AudioDevice,
+  CloudMeetingEntry,
+  MeetingType,
+  SpeakerSegment
+} from "@meeting-copilot/contracts";
 import { useState } from "react";
 import { SourcePicker } from "./SourcePicker";
 import { StateIndicator } from "./StateIndicator";
@@ -14,6 +19,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
   const [meetingType, setMeetingType] = useState<MeetingType>("general_meeting");
   const [meetingName, setMeetingName] = useState("");
   const [meetingDate, setMeetingDate] = useState(todayForInput);
+  const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
   const pt = notes.settings.language === "pt";
   const isBusy =
     notes.state === "thinking" ||
@@ -29,7 +35,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
       : pt
         ? "Transcrevendo"
         : "Transcribing",
-    ready_to_send: pt ? "Revisar participantes" : "Review participants",
+    ready_to_send: pt ? "Escolher destino" : "Choose what to keep",
     thinking: pt ? "Criando resumo" : "Creating summary",
     answering: pt ? "Criando resumo" : "Creating summary",
     error: pt ? "Atenção" : "Needs attention"
@@ -58,7 +64,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         <div className="topbar-actions">
           <button
             className="secondary compact-button"
-            disabled={isBusy}
+            disabled={isBusy || notes.isPostMeetingDecisionPending}
             onClick={() => void handleBack()}
           >
             ← {pt ? "Início" : "Home"}
@@ -85,7 +91,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
             role="radio"
             aria-checked={meetingType === "general_meeting"}
             className={meetingType === "general_meeting" ? "is-selected" : ""}
-            disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
+            disabled={notes.isRecording || isBusy || notes.isPostMeetingDecisionPending}
             onClick={() => setMeetingType("general_meeting")}
           >
             <span className="meeting-type-icon" aria-hidden="true">
@@ -105,7 +111,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
             role="radio"
             aria-checked={meetingType === "daily"}
             className={meetingType === "daily" ? "is-selected" : ""}
-            disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
+            disabled={notes.isRecording || isBusy || notes.isPostMeetingDecisionPending}
             onClick={() => setMeetingType("daily")}
           >
             <span className="meeting-type-icon" aria-hidden="true">
@@ -126,7 +132,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
       {meetingType === "daily" && (
         <DailyConfiguration
           portuguese={pt}
-          disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
+          disabled={notes.isRecording || isBusy || notes.isPostMeetingDecisionPending}
           meetingName={meetingName}
           meetingDate={meetingDate}
           onMeetingNameChange={setMeetingName}
@@ -137,7 +143,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
       <section className="control-panel notes-controls">
         <SourcePicker
           label={pt ? "Saída de áudio do Windows" : "Windows audio output"}
-          disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
+          disabled={notes.isRecording || isBusy || notes.isPostMeetingDecisionPending}
           requireExplicitSelection
           emptyLabel={pt ? "Selecione o dispositivo…" : "Select the output device…"}
           unavailableLabel={pt ? "Nenhuma saída de áudio encontrada" : "No audio output found"}
@@ -147,7 +153,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
           {pt ? "Idioma" : "Language"}
           <select
             value={notes.settings.language}
-            disabled={notes.isRecording || notes.isDailyReviewPending}
+            disabled={notes.isRecording || notes.isPostMeetingDecisionPending}
             onChange={(event) => void notes.updateSettings({ language: event.target.value })}
           >
             {languages.map((language) => (
@@ -161,7 +167,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
           {pt ? "Inteligência" : "Intelligence"}
           <select
             value={notes.settings.intelligenceLevel}
-            disabled={notes.isRecording || notes.isDailyReviewPending}
+            disabled={notes.isRecording || notes.isPostMeetingDecisionPending}
             onChange={(event) =>
               void notes.updateSettings({
                 intelligenceLevel: event.target.value as typeof notes.settings.intelligenceLevel
@@ -176,13 +182,29 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         <label className="switch">
           <input
             type="checkbox"
-            disabled={notes.isRecording || notes.isDailyReviewPending}
+            disabled={notes.isRecording || notes.isPostMeetingDecisionPending}
             checked={notes.settings.includeMicrophone}
             onChange={(event) =>
               void notes.updateSettings({ includeMicrophone: event.target.checked })
             }
           />
           {pt ? "Incluir microfone" : "Include microphone"}
+        </label>
+        <label className="switch cloud-sync-switch">
+          <input
+            type="checkbox"
+            disabled={notes.isRecording || notes.isPostMeetingDecisionPending}
+            checked={notes.settings.cloudSyncEnabled}
+            onChange={(event) =>
+              void notes.updateSettings({ cloudSyncEnabled: event.target.checked })
+            }
+          />
+          <span>
+            {pt ? "Salvar na nuvem" : "Save to cloud"}
+            <small>
+              {pt ? "Sincroniza após sua confirmação" : "Syncs after your confirmation"}
+            </small>
+          </span>
         </label>
       </section>
 
@@ -253,10 +275,10 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? pt
                   ? "GRAVAÇÃO EM ANDAMENTO"
                   : "RECORDING IN PROGRESS"
-                : notes.isDailyReviewPending
+                : notes.isPostMeetingDecisionPending
                   ? pt
-                    ? "REVISÃO DA DAILY"
-                    : "DAILY REVIEW"
+                    ? "DECISÃO PÓS-REUNIÃO"
+                    : "POST-MEETING DECISION"
                   : pt
                     ? "PRONTO PARA COMEÇAR"
                     : "READY TO START"}
@@ -270,10 +292,10 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? pt
                   ? "Estou ouvindo a reunião"
                   : "Listening to your meeting"
-                : notes.isDailyReviewPending
+                : notes.isPostMeetingDecisionPending
                   ? pt
-                    ? "Revise as pessoas antes de enviar"
-                    : "Review speakers before sending"
+                    ? "Escolha o que deseja manter"
+                    : "Choose what you want to keep"
                   : isBusy
                     ? pt
                       ? "Organizando suas anotações"
@@ -291,17 +313,17 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? pt
                   ? "A transcrição aparece abaixo em tempo real."
                   : "The transcript appears below in real time."
-                : notes.isDailyReviewPending
+                : notes.isPostMeetingDecisionPending
                   ? pt
-                    ? "Edite os nomes e os trechos abaixo. A IA só será chamada quando você confirmar."
-                    : "Edit names and segments below. AI is called only after you confirm."
+                    ? "Salve somente a transcrição, gere o resumo com IA ou apague tudo."
+                    : "Keep only the transcript, generate an AI summary, or delete everything."
                   : pt
                     ? meetingType === "daily"
                       ? "Durante a gravação, avance manualmente quando a próxima pessoa começar."
-                      : "Ao finalizar, a transcrição será salva e resumida pela IA."
+                      : "Ao finalizar, você decide se deseja resumir, salvar ou apagar."
                     : meetingType === "daily"
                       ? "During recording, advance manually when the next person starts."
-                      : "When finished, the transcript is saved and summarized by AI."}
+                      : "When finished, you decide whether to summarize, save, or delete."}
           </p>
           {notes.isRecording && meetingType === "daily" && (
             <div className="active-daily-speaker">
@@ -339,7 +361,9 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
           <button
             className={`record-button ${notes.isRecording ? "record-button-stop" : ""}`}
             disabled={
-              isBusy || notes.isDailyReviewPending || (!notes.isRecording && !selectedSource)
+              isBusy ||
+              notes.isPostMeetingDecisionPending ||
+              (!notes.isRecording && !selectedSource)
             }
             onClick={() =>
               void (notes.isRecording
@@ -396,9 +420,30 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         <DailySpeakerReview
           portuguese={pt}
           segments={notes.dailySegments}
-          submitting={notes.state === "thinking"}
           onChange={notes.updateDailySegment}
-          onSubmit={() => void notes.submitDailySummary()}
+        />
+      )}
+
+      {notes.isPostMeetingDecisionPending && (
+        <PostMeetingDecision
+          portuguese={pt}
+          cloudEnabled={notes.settings.cloudSyncEnabled}
+          submitting={notes.state === "thinking"}
+          onSaveTranscript={() => void notes.saveTranscriptOnly()}
+          onSummarize={() => void notes.submitMeetingSummary()}
+          onDiscard={() => setDiscardConfirmationOpen(true)}
+        />
+      )}
+
+      {discardConfirmationOpen && (
+        <DiscardMeetingDialog
+          portuguese={pt}
+          deleting={notes.state === "thinking"}
+          onCancel={() => setDiscardConfirmationOpen(false)}
+          onConfirm={() => {
+            setDiscardConfirmationOpen(false);
+            void notes.discardMeeting();
+          }}
         />
       )}
 
@@ -470,7 +515,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                     <MeetingExportMenu
                       filePath={entry.filePath}
                       structuredResultAvailable={entry.hasStructuredResult}
-                      disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
+                      disabled={notes.isRecording || isBusy || notes.isPostMeetingDecisionPending}
                       portuguese={pt}
                       compact
                     />
@@ -482,7 +527,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                     </button>
                     <button
                       className="compact-button retry-summary-button"
-                      disabled={notes.isRecording || isBusy || notes.isDailyReviewPending}
+                      disabled={notes.isRecording || isBusy || notes.isPostMeetingDecisionPending}
                       onClick={() => void notes.retrySavedNote(entry)}
                     >
                       {retrying
@@ -504,6 +549,18 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
           </div>
         )}
       </section>
+
+      {notes.settings.cloudSyncEnabled && (
+        <CloudMeetingHistory
+          portuguese={pt}
+          meetings={notes.cloudMeetings}
+          loading={notes.isLoadingCloudMeetings}
+          restoringId={notes.restoringCloudMeetingId}
+          disabled={notes.isRecording || isBusy || notes.isPostMeetingDecisionPending}
+          onRefresh={() => void notes.refreshCloudMeetings()}
+          onRestore={(entry) => void notes.restoreCloudMeeting(entry)}
+        />
+      )}
 
       <section className="notes-workspace">
         <div className="transcript-panel notes-transcript">
@@ -582,6 +639,93 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
   );
 }
 
+function CloudMeetingHistory({
+  portuguese,
+  meetings,
+  loading,
+  restoringId,
+  disabled,
+  onRefresh,
+  onRestore
+}: {
+  portuguese: boolean;
+  meetings: CloudMeetingEntry[];
+  loading: boolean;
+  restoringId: string | null;
+  disabled: boolean;
+  onRefresh: () => void;
+  onRestore: (entry: CloudMeetingEntry) => void;
+}) {
+  return (
+    <section className="saved-transcripts cloud-meeting-history">
+      <div className="saved-transcripts-heading">
+        <div>
+          <p className="eyebrow">{portuguese ? "NUVEM" : "CLOUD"}</p>
+          <h2>{portuguese ? "Reuniões sincronizadas" : "Synchronized meetings"}</h2>
+          <p>
+            {portuguese
+              ? "Restaure uma reunião salva no PostgreSQL em qualquer dispositivo configurado."
+              : "Restore a PostgreSQL-backed meeting on any configured device."}
+          </p>
+        </div>
+        <button className="secondary compact-button" disabled={loading} onClick={onRefresh}>
+          ↻ {portuguese ? "Atualizar" : "Refresh"}
+        </button>
+      </div>
+      {loading ? (
+        <p className="saved-transcripts-empty">
+          {portuguese ? "Carregando reuniões da nuvem…" : "Loading cloud meetings…"}
+        </p>
+      ) : meetings.length === 0 ? (
+        <p className="saved-transcripts-empty">
+          {portuguese ? "Nenhuma reunião sincronizada ainda." : "No synchronized meetings yet."}
+        </p>
+      ) : (
+        <div className="saved-transcript-list">
+          {meetings.map((entry) => (
+            <article className="saved-transcript-item" key={entry.id}>
+              <div className="saved-transcript-copy">
+                <div className="saved-transcript-title">
+                  <strong>{entry.title}</strong>
+                  <span className="cloud-badge">☁ {portuguese ? "Nuvem" : "Cloud"}</span>
+                  <span className={entry.hasSummary ? "has-summary" : "needs-summary"}>
+                    {entry.hasSummary
+                      ? portuguese
+                        ? "Resumo pronto"
+                        : "Summary ready"
+                      : portuguese
+                        ? "Somente transcrição"
+                        : "Transcript only"}
+                  </span>
+                </div>
+                <time dateTime={entry.startedAt}>
+                  {formatMeetingDate(entry.startedAt, portuguese)}
+                </time>
+                <p>{entry.transcriptPreview}</p>
+              </div>
+              <div className="saved-transcript-actions">
+                <button
+                  className="compact-button"
+                  disabled={disabled || restoringId !== null}
+                  onClick={() => onRestore(entry)}
+                >
+                  {restoringId === entry.id
+                    ? portuguese
+                      ? "Restaurando…"
+                      : "Restoring…"
+                    : portuguese
+                      ? "Baixar neste dispositivo"
+                      : "Download to this device"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function DailyConfiguration({
   portuguese,
   disabled,
@@ -642,18 +786,14 @@ function DailyConfiguration({
 function DailySpeakerReview({
   portuguese,
   segments,
-  submitting,
-  onChange,
-  onSubmit
+  onChange
 }: {
   portuguese: boolean;
   segments: SpeakerSegment[];
-  submitting: boolean;
   onChange: (
     index: number,
     patch: Partial<Pick<SpeakerSegment, "participant" | "transcript">>
   ) => void;
-  onSubmit: () => void;
 }) {
   return (
     <section className="daily-review">
@@ -701,26 +841,110 @@ function DailySpeakerReview({
           </article>
         ))}
       </div>
-      <div className="daily-review-submit">
-        <small>
-          {portuguese
-            ? "Os nomes informados serão tratados como atribuição manual confiável."
-            : "Entered names are treated as trusted manual attribution."}
-        </small>
-        <button
-          disabled={submitting || !segments.some((segment) => segment.transcript.trim())}
-          onClick={onSubmit}
-        >
+      <small className="daily-review-trust-note">
+        {portuguese
+          ? "Os nomes informados serão tratados como atribuição manual confiável."
+          : "Entered names are treated as trusted manual attribution."}
+      </small>
+    </section>
+  );
+}
+
+function PostMeetingDecision({
+  portuguese,
+  cloudEnabled,
+  submitting,
+  onSaveTranscript,
+  onSummarize,
+  onDiscard
+}: {
+  portuguese: boolean;
+  cloudEnabled: boolean;
+  submitting: boolean;
+  onSaveTranscript: () => void;
+  onSummarize: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <section className="post-meeting-decision">
+      <div>
+        <p className="eyebrow">{portuguese ? "O QUE FAZER AGORA?" : "WHAT HAPPENS NEXT?"}</p>
+        <h2>{portuguese ? "Você controla o destino da reunião" : "You control this meeting"}</h2>
+        <p>
+          {cloudEnabled
+            ? portuguese
+              ? "Ao salvar, a reunião ficará disponível localmente e no PostgreSQL da nuvem."
+              : "When saved, the meeting will be available locally and in cloud PostgreSQL."
+            : portuguese
+              ? "O salvamento na nuvem está desativado; a reunião permanecerá apenas neste PC."
+              : "Cloud saving is disabled; the meeting will remain only on this PC."}
+        </p>
+      </div>
+      <div className="post-meeting-actions">
+        <button className="secondary" disabled={submitting} onClick={onSaveTranscript}>
+          {portuguese ? "Salvar somente transcrição" : "Save transcript only"}
+        </button>
+        <button disabled={submitting} onClick={onSummarize}>
           {submitting
             ? portuguese
-              ? "Enviando…"
-              : "Sending…"
+              ? "Processando…"
+              : "Processing…"
             : portuguese
               ? "Enviar para IA e resumir"
               : "Send to AI and summarize"}
         </button>
+        <button className="danger-button" disabled={submitting} onClick={onDiscard}>
+          {portuguese ? "Apagar tudo" : "Delete everything"}
+        </button>
       </div>
     </section>
+  );
+}
+
+function DiscardMeetingDialog({
+  portuguese,
+  deleting,
+  onCancel,
+  onConfirm
+}: {
+  portuguese: boolean;
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="confirmation-backdrop" role="presentation">
+      <section
+        className="confirmation-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="discard-meeting-title"
+      >
+        <p className="eyebrow">{portuguese ? "AÇÃO IRREVERSÍVEL" : "IRREVERSIBLE ACTION"}</p>
+        <h2 id="discard-meeting-title">
+          {portuguese ? "Apagar esta reunião?" : "Delete this meeting?"}
+        </h2>
+        <p>
+          {portuguese
+            ? "A transcrição, o rascunho local e qualquer cópia sincronizada serão removidos."
+            : "The transcript, local draft, and any synchronized copy will be removed."}
+        </p>
+        <div className="confirmation-actions">
+          <button className="secondary" disabled={deleting} onClick={onCancel}>
+            {portuguese ? "Cancelar" : "Cancel"}
+          </button>
+          <button className="danger-button" disabled={deleting} onClick={onConfirm}>
+            {deleting
+              ? portuguese
+                ? "Apagando…"
+                : "Deleting…"
+              : portuguese
+                ? "Sim, apagar tudo"
+                : "Yes, delete everything"}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 

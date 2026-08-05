@@ -12,6 +12,8 @@ import { app, BrowserWindow, ipcMain, Menu, screen, shell } from "electron";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { ApiClient } from "./services/api-client.js";
+import { AudioBackupService } from "./services/audio-backup-service.js";
+import { CaptureSessionService } from "./services/capture-session-service.js";
 import { HotkeyService } from "./services/hotkey-service.js";
 import { MeetingExportService } from "./services/meeting-export-service.js";
 import { MeetingNotesService } from "./services/meeting-notes-service.js";
@@ -64,17 +66,27 @@ function loadDesktopEnvironment(): void {
 
 function registerIpc(
   settingsService: SettingsService,
-  transcription: RealtimeTranscriptionService,
+  captureSession: CaptureSessionService,
   hotkey: HotkeyService,
   apiClient: ApiClient,
   meetingNotes: MeetingNotesService,
   meetingExports: MeetingExportService,
-  nativeAudio: NativeAudioService
+  nativeAudio: NativeAudioService,
+  audioBackup: AudioBackupService
 ): void {
-  ipcMain.handle(IPC_CHANNELS.captureStart, () => transcription.start(settingsService.get()));
-  ipcMain.handle(IPC_CHANNELS.captureStop, () => transcription.commit());
-  ipcMain.handle(IPC_CHANNELS.captureCancel, () => transcription.cancel());
-  ipcMain.on(IPC_CHANNELS.audioChunk, (_event, chunk: ArrayBuffer) => transcription.append(chunk));
+  ipcMain.handle(IPC_CHANNELS.captureStart, () => captureSession.start(settingsService.get()));
+  ipcMain.handle(IPC_CHANNELS.captureStop, async () => {
+    const result = await captureSession.stop();
+    if (result.mode === "audio_backup") send(IPC_CHANNELS.stateChanged, "idle");
+    return result;
+  });
+  ipcMain.handle(IPC_CHANNELS.captureCancel, () => captureSession.cancel());
+  ipcMain.handle(IPC_CHANNELS.captureRevealBackup, async (_event, filePath: string) => {
+    if (typeof filePath !== "string") throw new Error("Invalid audio backup path");
+    await audioBackup.reveal(filePath);
+    shell.showItemInFolder(filePath);
+  });
+  ipcMain.on(IPC_CHANNELS.audioChunk, (_event, chunk: ArrayBuffer) => captureSession.append(chunk));
   ipcMain.handle(IPC_CHANNELS.listAudioDevices, () => nativeAudio.listDevices());
   ipcMain.handle(IPC_CHANNELS.selectAudioDevice, (_event, id: string) => {
     if (typeof id !== "string" || !id) throw new Error("Invalid audio device id");
@@ -406,6 +418,8 @@ async function bootstrap(): Promise<void> {
 
   const meetingNotes = new MeetingNotesService(app.getPath("documents"));
   const meetingExports = new MeetingExportService(meetingNotes, () => mainWindow);
+  const audioBackup = new AudioBackupService(app.getPath("documents"));
+  const captureSession = new CaptureSessionService(transcription, audioBackup);
   const nativeAudioExecutable = app.isPackaged
     ? join(process.resourcesPath, "native-audio", "MeetingCopilot.AudioCapture.exe")
     : resolve(
@@ -420,12 +434,13 @@ async function bootstrap(): Promise<void> {
 
   registerIpc(
     settingsService,
-    transcription,
+    captureSession,
     hotkey,
     apiClient,
     meetingNotes,
     meetingExports,
-    nativeAudio
+    nativeAudio,
+    audioBackup
   );
   await createWindow();
   const initialSettings = settingsService.get();

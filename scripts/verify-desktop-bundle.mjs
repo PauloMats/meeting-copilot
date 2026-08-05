@@ -13,6 +13,7 @@ if (/from\s+["']@meeting-copilot\/contracts["']/.test(bundle)) {
 }
 
 const requiredChannels = [
+  "capture:reveal-backup",
   "audio-devices:list",
   "audio-devices:select",
   "native-audio:start",

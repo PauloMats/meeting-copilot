@@ -604,6 +604,17 @@ export function useMeetingNotes() {
         setTranscript(finalTranscript);
         void completeRecording(finalTranscript);
       }),
+      window.copilot.events.onCaptureFallback(({ warning }) => {
+        setCaptureMode("audio_backup");
+        setRecordingWarning(
+          audioBackupWarningMessage(
+            warning ?? "Live transcription became unavailable",
+            settings.language
+          )
+        );
+        setError(null);
+        setState("listening");
+      }),
       window.copilot.events.onTranscriptionError((message) => {
         setIsRecording(false);
         setIsPaused(false);
@@ -626,7 +637,7 @@ export function useMeetingNotes() {
       }
       unsubscribe.forEach((dispose) => dispose());
     };
-  }, [completeRecording]);
+  }, [completeRecording, settings.language]);
 
   const updateSettings = async (patch: Partial<AppSettings>) => {
     const next = await window.copilot.settings.update(patch);

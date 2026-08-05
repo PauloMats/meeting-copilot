@@ -404,11 +404,33 @@ async function bootstrap(): Promise<void> {
     process.env.API_BASE_URL ?? "http://127.0.0.1:3333",
     process.env.DESKTOP_API_KEY
   );
+  let captureSession: CaptureSessionService | null = null;
   const transcription = new RealtimeTranscriptionService(apiClient, {
     state: (state: CaptureState) => send(IPC_CHANNELS.stateChanged, state),
     delta: (event) => send(IPC_CHANNELS.transcriptDelta, event),
     final: (event) => send(IPC_CHANNELS.transcriptFinal, event),
-    error: (message) => send(IPC_CHANNELS.transcriptionError, message)
+    error: (message) => {
+      const activeCapture = captureSession;
+      if (!activeCapture) {
+        send(IPC_CHANNELS.transcriptionError, message);
+        return;
+      }
+      void activeCapture
+        .fallback(message)
+        .then((result) => {
+          if (!result) {
+            send(IPC_CHANNELS.transcriptionError, message);
+            return;
+          }
+          send(IPC_CHANNELS.captureFallback, result);
+          send(IPC_CHANNELS.stateChanged, "listening");
+        })
+        .catch((cause: unknown) => {
+          const backupError =
+            cause instanceof Error ? cause.message : "Could not start the local audio backup";
+          send(IPC_CHANNELS.transcriptionError, `${message} Local backup failed: ${backupError}`);
+        });
+    }
   });
   const hotkey = new HotkeyService(
     () => send(IPC_CHANNELS.hotkeyPressed),
@@ -419,7 +441,7 @@ async function bootstrap(): Promise<void> {
   const meetingNotes = new MeetingNotesService(app.getPath("documents"));
   const meetingExports = new MeetingExportService(meetingNotes, () => mainWindow);
   const audioBackup = new AudioBackupService(app.getPath("documents"));
-  const captureSession = new CaptureSessionService(transcription, audioBackup);
+  captureSession = new CaptureSessionService(transcription, audioBackup);
   const nativeAudioExecutable = app.isPackaged
     ? join(process.resourcesPath, "native-audio", "MeetingCopilot.AudioCapture.exe")
     : resolve(

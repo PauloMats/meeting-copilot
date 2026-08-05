@@ -2,6 +2,7 @@ import {
   IPC_CHANNELS,
   type CopilotApi,
   type AppSettings,
+  type CaptureStartResult,
   type CaptureState,
   type TranscriptDelta,
   type TranscriptFinal
@@ -72,6 +73,8 @@ const api: CopilotApi = {
       subscribe<TranscriptDelta>(IPC_CHANNELS.transcriptDelta, listener),
     onTranscriptFinal: (listener) =>
       subscribe<TranscriptFinal>(IPC_CHANNELS.transcriptFinal, listener),
+    onCaptureFallback: (listener) =>
+      subscribe<CaptureStartResult>(IPC_CHANNELS.captureFallback, listener),
     onTranscriptionError: (listener) =>
       subscribe<string>(IPC_CHANNELS.transcriptionError, listener),
     onNativeAudioChunk: (listener) =>

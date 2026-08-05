@@ -61,4 +61,46 @@ describe("CaptureSessionService", () => {
     expect(transcription.commit).toHaveBeenCalledOnce();
     expect(audioBackup.start).not.toHaveBeenCalled();
   });
+
+  it("switches an open realtime session to local backup after an asynchronous provider error", async () => {
+    const { transcription, audioBackup } = createDependencies();
+    const service = new CaptureSessionService(transcription, audioBackup);
+    const chunkDuringTransition = new Uint8Array([5, 6]).buffer;
+    const chunkAfterTransition = new Uint8Array([7, 8]).buffer;
+    let finishBackupStart: (() => void) | undefined;
+    audioBackup.start.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finishBackupStart = resolve))
+    );
+
+    await service.start(DEFAULT_SETTINGS);
+    const fallback = service.fallback("You have no credits remaining");
+    service.append(chunkDuringTransition);
+    finishBackupStart?.();
+
+    await expect(fallback).resolves.toEqual({
+      mode: "audio_backup",
+      warning: "You have no credits remaining"
+    });
+    service.append(chunkAfterTransition);
+    await expect(service.stop()).resolves.toEqual({
+      mode: "audio_backup",
+      audioBackupPath: "C:\\Documents\\Meeting Copilot\\Recordings\\meeting.wav"
+    });
+
+    expect(transcription.cancel).toHaveBeenCalledOnce();
+    expect(audioBackup.append).toHaveBeenNthCalledWith(1, chunkDuringTransition);
+    expect(audioBackup.append).toHaveBeenNthCalledWith(2, chunkAfterTransition);
+    expect(transcription.commit).not.toHaveBeenCalled();
+  });
+
+  it("ignores a late fallback request after the capture has stopped", async () => {
+    const { transcription, audioBackup } = createDependencies();
+    const service = new CaptureSessionService(transcription, audioBackup);
+
+    await service.start(DEFAULT_SETTINGS);
+    await service.stop();
+
+    await expect(service.fallback("late provider error")).resolves.toBeNull();
+    expect(audioBackup.start).not.toHaveBeenCalled();
+  });
 });

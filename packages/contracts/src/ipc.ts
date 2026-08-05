@@ -24,6 +24,7 @@ export const IPC_CHANNELS = {
   captureStop: "capture:stop",
   captureCancel: "capture:cancel",
   captureRevealBackup: "capture:reveal-backup",
+  captureFallback: "capture:fallback",
   hotkeyPressed: "hotkey:pressed",
   hotkeyReleased: "hotkey:released",
   audioChunk: "audio:chunk",
@@ -154,6 +155,7 @@ export interface CopilotApi {
     onStateChanged(listener: (state: CaptureState) => void): () => void;
     onTranscriptDelta(listener: (event: TranscriptDelta) => void): () => void;
     onTranscriptFinal(listener: (event: TranscriptFinal) => void): () => void;
+    onCaptureFallback(listener: (event: CaptureStartResult) => void): () => void;
     onTranscriptionError(listener: (message: string) => void): () => void;
     onNativeAudioChunk(listener: (chunk: ArrayBuffer) => void): () => void;
     onNativeAudioLevels(listener: (levels: AudioLevels) => void): () => void;

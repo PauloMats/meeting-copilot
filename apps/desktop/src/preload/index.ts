@@ -25,6 +25,7 @@ const api: CopilotApi = {
     start: () => ipcRenderer.invoke(IPC_CHANNELS.captureStart),
     stop: () => ipcRenderer.invoke(IPC_CHANNELS.captureStop),
     cancel: () => ipcRenderer.invoke(IPC_CHANNELS.captureCancel),
+    revealBackup: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.captureRevealBackup, filePath),
     sendAudioChunk: (chunk) => ipcRenderer.send(IPC_CHANNELS.audioChunk, chunk)
   },
   systemAudio: {

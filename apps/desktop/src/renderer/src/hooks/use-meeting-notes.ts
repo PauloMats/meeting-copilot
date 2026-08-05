@@ -1,6 +1,7 @@
 import {
   DEFAULT_SETTINGS,
   type AppSettings,
+  type CaptureMode,
   type CaptureState,
   type MeetingContext,
   type MeetingResult,
@@ -49,6 +50,10 @@ export function useMeetingNotes() {
   const [savedNoticeVisible, setSavedNoticeVisible] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [captureMode, setCaptureMode] = useState<CaptureMode>("live_transcription");
+  const [recordingWarning, setRecordingWarning] = useState<string | null>(null);
+  const [audioBackupPath, setAudioBackupPath] = useState<string | null>(null);
+  const [audioBackupNoticeVisible, setAudioBackupNoticeVisible] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [audioLevels, setAudioLevels] = useState<AudioLevels>(EMPTY_AUDIO_LEVELS);
   const [savedNotes, setSavedNotes] = useState<SavedMeetingNoteEntry[]>([]);
@@ -323,6 +328,10 @@ export function useMeetingNotes() {
       setSummaryMeetingType(meetingSetup.meetingType);
       setSavedPath(null);
       setSavedNoticeVisible(false);
+      setAudioBackupPath(null);
+      setAudioBackupNoticeVisible(false);
+      setRecordingWarning(null);
+      setCaptureMode("live_transcription");
       setIsDailyReviewPending(false);
       setError(null);
       setAudioLevels({
@@ -342,7 +351,11 @@ export function useMeetingNotes() {
         speakerSegments: initialDailySegments
       };
       try {
-        await window.copilot.capture.start();
+        const captureSession = await window.copilot.capture.start();
+        setCaptureMode(captureSession.mode);
+        if (captureSession.warning) {
+          setRecordingWarning(audioBackupWarningMessage(captureSession.warning, settings.language));
+        }
         await capture.current.start(
           settings.includeMicrophone,
           (chunk) => window.copilot.capture.sendAudioChunk(chunk),
@@ -352,9 +365,26 @@ export function useMeetingNotes() {
             setIsPaused(false);
             setError(message);
             void capture.current.stop();
-            void window.copilot.capture.stop();
+            void window.copilot.capture
+              .stop()
+              .then((result) => {
+                if (result.audioBackupPath) {
+                  setAudioBackupPath(result.audioBackupPath);
+                  setAudioBackupNoticeVisible(true);
+                  setCaptureMode("live_transcription");
+                  setRecordingWarning(null);
+                }
+                setState("error");
+              })
+              .catch((cause: unknown) => {
+                const detail =
+                  cause instanceof Error ? cause.message : "Could not save the audio backup";
+                setError(`${message} ${detail}`);
+                setState("error");
+              });
           }
         );
+        setState("listening");
       } catch (cause) {
         await capture.current.stop();
         await window.copilot.capture.cancel();
@@ -382,9 +412,24 @@ export function useMeetingNotes() {
     }
     setIsRecording(false);
     setIsPaused(false);
-    setState("transcribing");
     await capture.current.stop();
-    await window.copilot.capture.stop();
+    try {
+      const result = await window.copilot.capture.stop();
+      if (result.mode === "audio_backup") {
+        if (!result.audioBackupPath) throw new Error("The audio backup path was not returned");
+        setAudioBackupPath(result.audioBackupPath);
+        setAudioBackupNoticeVisible(true);
+        setCaptureMode("live_transcription");
+        setRecordingWarning(null);
+        setState("idle");
+        return;
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save the audio backup");
+      setState("error");
+      return;
+    }
+    setState("transcribing");
     finalizationTimer.current = window.setTimeout(() => {
       void completeRecording(transcriptRef.current);
     }, 8000);
@@ -449,6 +494,10 @@ export function useMeetingNotes() {
     await window.copilot.capture.cancel();
     setIsRecording(false);
     setIsPaused(false);
+    setCaptureMode("live_transcription");
+    setRecordingWarning(null);
+    setAudioBackupPath(null);
+    setAudioBackupNoticeVisible(false);
     setIsDailyReviewPending(false);
     dailySegmentsRef.current = [];
     setDailySegments([]);
@@ -596,6 +645,10 @@ export function useMeetingNotes() {
     savedNoticeVisible,
     isRecording,
     isPaused,
+    captureMode,
+    recordingWarning,
+    audioBackupPath,
+    audioBackupNoticeVisible,
     elapsedSeconds,
     audioLevels,
     savedNotes,
@@ -614,9 +667,16 @@ export function useMeetingNotes() {
     retrySavedNote,
     refreshSavedNotes,
     dismissSavedPath: () => setSavedNoticeVisible(false),
+    dismissAudioBackup: () => setAudioBackupNoticeVisible(false),
     cancel,
     updateSettings
   };
+}
+
+function audioBackupWarningMessage(reason: string, language: string): string {
+  return language === "pt"
+    ? `A transcrição ao vivo está indisponível. O áudio da reunião está sendo gravado como backup local e será salvo em Documentos/Meeting Copilot/Recordings. Reponha os créditos para voltar a transcrever e gerar a ata. Detalhe: ${reason}`
+    : `Live transcription is unavailable. Meeting audio is being recorded as a local backup and will be saved under Documents/Meeting Copilot/Recordings. Restore API credits to transcribe and generate notes again. Detail: ${reason}`;
 }
 
 function audioStartErrorMessage(cause: unknown, language: string): string {

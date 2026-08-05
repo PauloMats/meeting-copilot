@@ -1234,6 +1234,17 @@ footer span::before {
   margin: 10px 2px 0;
 }
 
+.recording-warning {
+  margin: 12px 2px 0;
+  padding: 11px 14px;
+  border: 1px solid rgba(245, 190, 74, 0.28);
+  border-radius: 10px;
+  color: #efd69b;
+  background: rgba(245, 190, 74, 0.08);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 .saved-note {
   display: flex;
   align-items: center;
@@ -1251,6 +1262,15 @@ footer span::before {
 .saved-note strong {
   color: #b8c9dc;
   font-weight: 550;
+}
+
+.audio-backup-note {
+  border-color: rgba(245, 190, 74, 0.25);
+  background: rgba(245, 190, 74, 0.06);
+}
+
+.audio-backup-note strong {
+  color: #efd69b;
 }
 
 .saved-note-actions {

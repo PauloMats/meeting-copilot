@@ -21,7 +21,17 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
     (!notes.isRecording && notes.state === "transcribing");
   const stateLabels = {
     idle: pt ? "Pronto" : "Ready",
-    listening: notes.isPaused ? (pt ? "Pausada" : "Paused") : pt ? "Gravando" : "Recording",
+    listening: notes.isPaused
+      ? pt
+        ? "Pausada"
+        : "Paused"
+      : notes.captureMode === "audio_backup"
+        ? pt
+          ? "Salvando áudio"
+          : "Saving audio"
+        : pt
+          ? "Gravando"
+          : "Recording",
     transcribing: notes.isPaused
       ? pt
         ? "Pausada"
@@ -250,9 +260,13 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? "GRAVAÇÃO PAUSADA"
                 : "RECORDING PAUSED"
               : notes.isRecording
-                ? pt
-                  ? "GRAVAÇÃO EM ANDAMENTO"
-                  : "RECORDING IN PROGRESS"
+                ? notes.captureMode === "audio_backup"
+                  ? pt
+                    ? "GRAVAÇÃO DE SEGURANÇA"
+                    : "SAFETY RECORDING"
+                  : pt
+                    ? "GRAVAÇÃO EM ANDAMENTO"
+                    : "RECORDING IN PROGRESS"
                 : notes.isDailyReviewPending
                   ? pt
                     ? "REVISÃO DA DAILY"
@@ -267,9 +281,13 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? "Este trecho não está sendo transcrito"
                 : "This part is not being transcribed"
               : notes.isRecording
-                ? pt
-                  ? "Estou ouvindo a reunião"
-                  : "Listening to your meeting"
+                ? notes.captureMode === "audio_backup"
+                  ? pt
+                    ? "O áudio está sendo preservado localmente"
+                    : "Audio is being preserved locally"
+                  : pt
+                    ? "Estou ouvindo a reunião"
+                    : "Listening to your meeting"
                 : notes.isDailyReviewPending
                   ? pt
                     ? "Revise as pessoas antes de enviar"
@@ -288,9 +306,13 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                 ? "Retome quando a conversa voltar a ser relevante."
                 : "Resume when the conversation becomes relevant again."
               : notes.isRecording
-                ? pt
-                  ? "A transcrição aparece abaixo em tempo real."
-                  : "The transcript appears below in real time."
+                ? notes.captureMode === "audio_backup"
+                  ? pt
+                    ? "Sem créditos, não há transcrição ao vivo. Ao finalizar, o arquivo WAV será salvo para recuperação posterior."
+                    : "Without API credits, live transcription is unavailable. The WAV file will be saved for later recovery when you finish."
+                  : pt
+                    ? "A transcrição aparece abaixo em tempo real."
+                    : "The transcript appears below in real time."
                 : notes.isDailyReviewPending
                   ? pt
                     ? "Edite os nomes e os trechos abaixo. A IA só será chamada quando você confirmar."
@@ -303,28 +325,32 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                       ? "During recording, advance manually when the next person starts."
                       : "When finished, the transcript is saved and summarized by AI."}
           </p>
-          {notes.isRecording && meetingType === "daily" && (
-            <div className="active-daily-speaker">
-              <span>{pt ? "FALANDO AGORA" : "SPEAKING NOW"}</span>
-              <strong>
-                {pt ? "Pessoa" : "Person"} {notes.activeDailySegmentIndex + 1}
-              </strong>
-            </div>
-          )}
+          {notes.isRecording &&
+            notes.captureMode === "live_transcription" &&
+            meetingType === "daily" && (
+              <div className="active-daily-speaker">
+                <span>{pt ? "FALANDO AGORA" : "SPEAKING NOW"}</span>
+                <strong>
+                  {pt ? "Pessoa" : "Person"} {notes.activeDailySegmentIndex + 1}
+                </strong>
+              </div>
+            )}
         </div>
         <div className="recording-actions">
-          {notes.isRecording && meetingType === "daily" && (
-            <button
-              className="secondary next-speaker-button"
-              disabled={
-                notes.isPaused ||
-                !notes.dailySegments[notes.activeDailySegmentIndex]?.transcript.trim()
-              }
-              onClick={notes.nextDailySpeaker}
-            >
-              {pt ? "Próxima pessoa" : "Next person"} →
-            </button>
-          )}
+          {notes.isRecording &&
+            notes.captureMode === "live_transcription" &&
+            meetingType === "daily" && (
+              <button
+                className="secondary next-speaker-button"
+                disabled={
+                  notes.isPaused ||
+                  !notes.dailySegments[notes.activeDailySegmentIndex]?.transcript.trim()
+                }
+                onClick={notes.nextDailySpeaker}
+              >
+                {pt ? "Próxima pessoa" : "Next person"} →
+              </button>
+            )}
           {notes.isRecording && (
             <button
               className={`secondary pause-button ${notes.isPaused ? "resume-button" : ""}`}
@@ -367,7 +393,36 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         <div className="recording-timer">{formatDuration(notes.elapsedSeconds)}</div>
       </section>
 
+      {notes.recordingWarning && (
+        <p className="recording-warning" role="status">
+          {notes.recordingWarning}
+        </p>
+      )}
       {notes.error && <p className="error-message notes-error">{notes.error}</p>}
+      {notes.audioBackupPath && notes.audioBackupNoticeVisible && (
+        <div className="saved-note audio-backup-note">
+          <span>
+            ✓ {pt ? "Áudio de segurança salvo em" : "Safety audio saved to"}{" "}
+            <strong>{notes.audioBackupPath}</strong>
+          </span>
+          <div className="saved-note-actions">
+            <button
+              className="secondary compact-button"
+              onClick={() => void window.copilot.capture.revealBackup(notes.audioBackupPath!)}
+            >
+              {pt ? "Mostrar áudio" : "Show audio"}
+            </button>
+            <button
+              className="saved-note-dismiss"
+              aria-label={pt ? "Fechar aviso" : "Dismiss notification"}
+              title={pt ? "Fechar aviso" : "Dismiss notification"}
+              onClick={notes.dismissAudioBackup}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       {notes.savedPath && notes.savedNoticeVisible && (
         <div className="saved-note">
           <span>
@@ -509,15 +564,27 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         <div className="transcript-panel notes-transcript">
           <div className="section-heading">
             <h2>{pt ? "Transcrição ao vivo" : "Live transcript"}</h2>
-            <span>{pt ? "Áudio não salvo" : "Audio is not saved"}</span>
+            <span>
+              {notes.captureMode === "audio_backup"
+                ? pt
+                  ? "Modo backup: áudio local"
+                  : "Backup mode: local audio"
+                : pt
+                  ? "Áudio não salvo"
+                  : "Audio is not saved"}
+            </span>
           </div>
           <textarea
             readOnly
             value={notes.transcript}
             placeholder={
-              pt
-                ? "A conversa transcrita aparecerá aqui…"
-                : "The transcribed conversation will appear here…"
+              notes.captureMode === "audio_backup"
+                ? pt
+                  ? "Transcrição indisponível sem créditos. O áudio continuará sendo gravado."
+                  : "Transcription is unavailable without credits. Audio recording will continue."
+                : pt
+                  ? "A conversa transcrita aparecerá aqui…"
+                  : "The transcribed conversation will appear here…"
             }
           />
         </div>

@@ -23,6 +23,7 @@ export const IPC_CHANNELS = {
   captureStart: "capture:start",
   captureStop: "capture:stop",
   captureCancel: "capture:cancel",
+  captureRevealBackup: "capture:reveal-backup",
   hotkeyPressed: "hotkey:pressed",
   hotkeyReleased: "hotkey:released",
   audioChunk: "audio:chunk",
@@ -84,6 +85,18 @@ export interface TranscriptFinal {
   transcript: string;
 }
 
+export type CaptureMode = "live_transcription" | "audio_backup";
+
+export interface CaptureStartResult {
+  mode: CaptureMode;
+  warning: string | null;
+}
+
+export interface CaptureStopResult {
+  mode: CaptureMode;
+  audioBackupPath: string | null;
+}
+
 export const SaveMeetingNoteRequestSchema = z.object({
   transcript: z.string().min(1).max(200_000),
   summary: MeetingResultSchema.nullable(),
@@ -97,9 +110,10 @@ export type SaveMeetingNoteRequest = z.infer<typeof SaveMeetingNoteRequestSchema
 
 export interface CopilotApi {
   capture: {
-    start(): Promise<void>;
-    stop(): Promise<void>;
+    start(): Promise<CaptureStartResult>;
+    stop(): Promise<CaptureStopResult>;
     cancel(): Promise<void>;
+    revealBackup(filePath: string): Promise<void>;
     sendAudioChunk(chunk: ArrayBuffer): void;
   };
   systemAudio: {

@@ -19,7 +19,7 @@ describe("MeetingNotesService", () => {
     const baseRequest = {
       transcript: "Ana will prepare the release notes by Friday.",
       meetingType: "general_meeting" as const,
-      meetingName: "",
+      meetingName: "Release planning",
       meetingDate: "",
       orderedParticipants: [],
       speakerHints: [],
@@ -30,7 +30,9 @@ describe("MeetingNotesService", () => {
     };
 
     const draft = await service.save({ ...baseRequest, summary: null });
-    expect(await readFile(draft.filePath, "utf8")).toContain(baseRequest.transcript);
+    const draftMarkdown = await readFile(draft.filePath, "utf8");
+    expect(draftMarkdown).toContain("# Release planning");
+    expect(draftMarkdown).toContain(baseRequest.transcript);
 
     const summary: MeetingSummary = {
       title: "Release planning",
@@ -71,6 +73,30 @@ describe("MeetingNotesService", () => {
       }
     });
     expect(service.isManagedFile(completed.filePath)).toBe(true);
+  });
+
+  it("deletes a discarded Markdown draft and its JSON sidecar", async () => {
+    testDirectory = await mkdtemp(join(tmpdir(), "meeting-copilot-"));
+    const service = new MeetingNotesService(testDirectory);
+    const saved = await service.save({
+      transcript: "Esta gravação foi iniciada por engano.",
+      summary: null,
+      meetingType: "general_meeting",
+      meetingName: "",
+      meetingDate: "",
+      orderedParticipants: [],
+      speakerHints: [],
+      speakerSegments: [],
+      language: "pt",
+      startedAt: "2026-09-01T12:00:00.000Z",
+      endedAt: "2026-09-01T12:01:00.000Z"
+    });
+    const dataFilePath = saved.filePath.replace(/\.md$/, ".json");
+
+    await service.delete(saved.filePath);
+
+    await expect(readFile(saved.filePath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(dataFilePath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("lists saved transcripts and reads the full transcript for retry", async () => {

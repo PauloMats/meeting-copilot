@@ -140,6 +140,10 @@ function registerIpc(
     if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
     return meetingExports.copyFormatted(filePath);
   });
+  ipcMain.handle(IPC_CHANNELS.meetingNotesDelete, (_event, filePath: string) => {
+    if (typeof filePath !== "string") throw new Error("Invalid meeting note path");
+    return meetingNotes.delete(filePath);
+  });
   ipcMain.handle(IPC_CHANNELS.overlaySet, (_event, enabled: boolean) => {
     setOverlayMode(enabled);
   });

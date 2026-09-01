@@ -56,7 +56,8 @@ const api: CopilotApi = {
     exportPdf: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesExportPdf, filePath),
     exportHtml: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesExportHtml, filePath),
     copyFormatted: (filePath) =>
-      ipcRenderer.invoke(IPC_CHANNELS.meetingNotesCopyFormatted, filePath)
+      ipcRenderer.invoke(IPC_CHANNELS.meetingNotesCopyFormatted, filePath),
+    delete: (filePath) => ipcRenderer.invoke(IPC_CHANNELS.meetingNotesDelete, filePath)
   },
   window: {
     setOverlay: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.overlaySet, enabled),

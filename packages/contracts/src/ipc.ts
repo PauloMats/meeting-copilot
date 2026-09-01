@@ -52,6 +52,7 @@ export const IPC_CHANNELS = {
   meetingNotesExportPdf: "meeting-notes:export-pdf",
   meetingNotesExportHtml: "meeting-notes:export-html",
   meetingNotesCopyFormatted: "meeting-notes:copy-formatted",
+  meetingNotesDelete: "meeting-notes:delete",
   realtimeToken: "realtime:token",
   overlaySet: "overlay:set",
   windowMinimize: "window:minimize",
@@ -141,6 +142,7 @@ export interface CopilotApi {
     exportPdf(filePath: string): Promise<MeetingExportResult>;
     exportHtml(filePath: string): Promise<MeetingExportResult>;
     copyFormatted(filePath: string): Promise<MeetingExportResult>;
+    delete(filePath: string): Promise<void>;
   };
   window: {
     setOverlay(enabled: boolean): Promise<void>;

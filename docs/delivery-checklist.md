@@ -22,6 +22,9 @@
 - [x] Click-to-start/click-to-finish long-form transcription
 - [x] Structured meeting summary, decisions and action-item extraction
 - [x] Transcript-first local Markdown persistence
+- [x] Manual General Meeting name/transcript review before AI submission
+- [x] Confirmed cancel-and-delete for active captures and pending drafts
+- [x] Mid-recording microphone enable/disable with safe WASAPI restart
 - [x] Unit/API tests and CI workflow
 
 ## Required before public production release

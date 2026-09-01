@@ -22,6 +22,10 @@ decisions, action items, owners, deadlines, next steps, and open questions.
 - A compact person-by-person Daily report with concise updates, blockers, and next steps.
 - Manual Daily speaker handoff during continuous recording, starting with `Pessoa 1`.
 - Daily review with editable participant names and transcript segments before the explicit AI call.
+- General-meeting review with an editable meeting name and transcript before the explicit AI call.
+- Pause/resume and confirmed cancel-and-delete controls during long-form meeting capture.
+- Microphone capture can be enabled or disabled while recording; WASAPI restarts briefly without
+  ending the active meeting session.
 - Dedicated structured AI prompts that do not invent owners, deadlines, decisions, or updates.
 - Automatic Markdown notes under the user's `Documents/Meeting Copilot` directory.
 - Structured JSON sidecars preserve the exact AI result locally for reuse without another AI call.

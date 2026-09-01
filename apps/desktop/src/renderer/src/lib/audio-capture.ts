@@ -80,6 +80,34 @@ export class AudioCapture {
     }
   }
 
+  async setIncludeMicrophone(includeMicrophone: boolean): Promise<void> {
+    if (this.includeMicrophone === includeMicrophone) return;
+    const previous = this.includeMicrophone;
+    this.includeMicrophone = includeMicrophone;
+
+    if (this.paused || !this.active) {
+      this.levelListener?.({ system: 0, microphone: includeMicrophone ? 0 : null });
+      return;
+    }
+
+    await window.copilot.systemAudio.stop();
+    this.active = false;
+    try {
+      await this.startNative();
+      this.active = true;
+      this.levelListener?.({ system: 0, microphone: includeMicrophone ? 0 : null });
+    } catch (cause) {
+      this.includeMicrophone = previous;
+      try {
+        await this.startNative();
+        this.active = true;
+      } catch {
+        // Preserve the original microphone error; the caller will stop the broken session.
+      }
+      throw toAudioSourceStartError(cause);
+    }
+  }
+
   async stop(): Promise<void> {
     if (this.active) await window.copilot.systemAudio.stop();
     this.active = false;

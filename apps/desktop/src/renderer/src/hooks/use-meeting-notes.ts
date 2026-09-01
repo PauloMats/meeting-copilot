@@ -61,6 +61,11 @@ export function useMeetingNotes() {
   const [retryingPath, setRetryingPath] = useState<string | null>(null);
   const [dailySegments, setDailySegments] = useState<SpeakerSegment[]>([]);
   const [isDailyReviewPending, setIsDailyReviewPending] = useState(false);
+  const [generalReviewName, setGeneralReviewName] = useState("");
+  const [generalReviewTranscript, setGeneralReviewTranscript] = useState("");
+  const [isGeneralReviewPending, setIsGeneralReviewPending] = useState(false);
+  const [isChangingMicrophone, setIsChangingMicrophone] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
   const capture = useRef(new AudioCapture());
   const transcriptRef = useRef("");
   const startedAt = useRef<string | null>(null);
@@ -72,6 +77,7 @@ export function useMeetingNotes() {
   const dailySegmentsRef = useRef<SpeakerSegment[]>([]);
   const activeDailySegmentRef = useRef(0);
   const endedAtRef = useRef<string | null>(null);
+  const discardRequestedRef = useRef(false);
 
   const refreshSavedNotes = useCallback(async () => {
     setIsLoadingSavedNotes(true);
@@ -95,9 +101,9 @@ export function useMeetingNotes() {
     return () => window.clearInterval(timer);
   }, [isPaused, isRecording]);
 
-  const finalizeGeneralMeeting = useCallback(
+  const prepareGeneralReview = useCallback(
     async (value: string) => {
-      if (finalizationStarted.current) return;
+      if (finalizationStarted.current || discardRequestedRef.current) return;
       finalizationStarted.current = true;
       if (finalizationTimer.current !== null) {
         window.clearTimeout(finalizationTimer.current);
@@ -106,15 +112,21 @@ export function useMeetingNotes() {
       const trimmed = value.trim();
       const recordingStartedAt = startedAt.current;
       if (!trimmed || !recordingStartedAt) {
-        setError("No speech was detected in this recording.");
+        setError(
+          settings.language === "pt"
+            ? "Nenhuma fala foi detectada nesta gravação."
+            : "No speech was detected in this recording."
+        );
         setState("error");
         return;
       }
 
       const endedAt = new Date().toISOString();
+      endedAtRef.current = endedAt;
       const meetingSetup = meetingSetupRef.current;
-      setState("thinking");
-      let draftSaved = false;
+      setGeneralReviewName(meetingSetup.meetingName);
+      setGeneralReviewTranscript(trimmed);
+      setIsGeneralReviewPending(true);
       try {
         const saved = await window.copilot.meetingNotes.save({
           transcript: trimmed,
@@ -126,48 +138,20 @@ export function useMeetingNotes() {
         });
         setSavedPath(saved.filePath);
         setSavedNoticeVisible(true);
-        draftSaved = true;
-        await refreshSavedNotes();
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Could not save the transcript");
-      }
-
-      try {
-        const response = await window.copilot.backend.generateMeetingSummary({
-          transcript: trimmed,
-          intelligenceLevel: settings.intelligenceLevel,
-          language: settings.language,
-          ...meetingSetup
-        });
-        setSummary(response.summary);
-        setSummaryMeetingType(response.meetingType);
-        setSummaryExportReady(false);
-        const saved = await window.copilot.meetingNotes.save({
-          transcript: trimmed,
-          summary: response.summary,
-          ...meetingSetup,
-          language: settings.language,
-          startedAt: recordingStartedAt,
-          endedAt
-        });
-        setSavedPath(saved.filePath);
-        setSavedNoticeVisible(true);
-        setSummaryExportReady(true);
         await refreshSavedNotes();
         setError(null);
-        setState("idle");
+        setState("ready_to_send");
       } catch (cause) {
-        const message = cause instanceof Error ? cause.message : "Meeting summary failed";
-        setError(draftSaved ? `${message} The transcript was saved.` : message);
-        setState("error");
+        setError(cause instanceof Error ? cause.message : "Could not save the transcript");
+        setState("ready_to_send");
       }
     },
-    [refreshSavedNotes, settings.intelligenceLevel, settings.language]
+    [refreshSavedNotes, settings.language]
   );
 
   const prepareDailyReview = useCallback(
     async (value: string) => {
-      if (finalizationStarted.current) return;
+      if (finalizationStarted.current || discardRequestedRef.current) return;
       finalizationStarted.current = true;
       if (finalizationTimer.current !== null) {
         window.clearTimeout(finalizationTimer.current);
@@ -233,9 +217,84 @@ export function useMeetingNotes() {
     (value: string) =>
       meetingSetupRef.current.meetingType === "daily"
         ? prepareDailyReview(value)
-        : finalizeGeneralMeeting(value),
-    [finalizeGeneralMeeting, prepareDailyReview]
+        : prepareGeneralReview(value),
+    [prepareDailyReview, prepareGeneralReview]
   );
+
+  const submitGeneralSummary = useCallback(async () => {
+    if (!isGeneralReviewPending || state === "thinking") return;
+    const recordingStartedAt = startedAt.current;
+    const endedAt = endedAtRef.current;
+    const transcript = generalReviewTranscript.trim();
+    if (!recordingStartedAt || !endedAt || !transcript) {
+      setError(
+        settings.language === "pt"
+          ? "Revise a transcrição antes de enviar."
+          : "Review the transcript before sending."
+      );
+      return;
+    }
+
+    const meetingSetup = {
+      ...meetingSetupRef.current,
+      meetingName: generalReviewName.trim()
+    };
+    meetingSetupRef.current = meetingSetup;
+    transcriptRef.current = transcript;
+    setTranscript(transcript);
+    setState("thinking");
+    setError(null);
+
+    try {
+      const draft = {
+        transcript,
+        summary: null,
+        ...meetingSetup,
+        language: settings.language,
+        startedAt: recordingStartedAt,
+        endedAt
+      };
+      const localDraft = savedPath
+        ? await window.copilot.meetingNotes.update(savedPath, draft)
+        : await window.copilot.meetingNotes.save(draft);
+      setSavedPath(localDraft.filePath);
+      setSavedNoticeVisible(true);
+
+      const response = await window.copilot.backend.generateMeetingSummary({
+        transcript,
+        intelligenceLevel: settings.intelligenceLevel,
+        language: settings.language,
+        ...meetingSetup
+      });
+      await window.copilot.meetingNotes.update(localDraft.filePath, {
+        ...draft,
+        summary: response.summary
+      });
+      setSummary(response.summary);
+      setSummaryMeetingType(response.meetingType);
+      setSummaryExportReady(true);
+      setIsGeneralReviewPending(false);
+      await refreshSavedNotes();
+      setState("idle");
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Meeting summary failed";
+      setError(
+        settings.language === "pt"
+          ? `${message} A transcrição revisada continua salva.`
+          : `${message} The reviewed transcript remains saved.`
+      );
+      setState("ready_to_send");
+    }
+  }, [
+    generalReviewName,
+    generalReviewTranscript,
+    isGeneralReviewPending,
+    refreshSavedNotes,
+    savedPath,
+    settings.intelligenceLevel,
+    settings.language,
+    state
+  ]);
 
   const submitDailySummary = useCallback(async () => {
     if (!isDailyReviewPending || state === "thinking") return;
@@ -313,7 +372,13 @@ export function useMeetingNotes() {
 
   const startRecording = useCallback(
     async (meetingSetup: MeetingRecordingSetup) => {
-      if (startInFlight.current || isRecording || isDailyReviewPending || state === "thinking") {
+      if (
+        startInFlight.current ||
+        isRecording ||
+        isDailyReviewPending ||
+        isGeneralReviewPending ||
+        state === "thinking"
+      ) {
         return;
       }
       startInFlight.current = true;
@@ -333,12 +398,16 @@ export function useMeetingNotes() {
       setRecordingWarning(null);
       setCaptureMode("live_transcription");
       setIsDailyReviewPending(false);
+      setIsGeneralReviewPending(false);
+      setGeneralReviewName("");
+      setGeneralReviewTranscript("");
       setError(null);
       setAudioLevels({
         system: 0,
         microphone: settings.includeMicrophone ? 0 : null
       });
       finalizationStarted.current = false;
+      discardRequestedRef.current = false;
       startedAt.current = new Date().toISOString();
       endedAtRef.current = null;
       const initialDailySegments =
@@ -396,7 +465,14 @@ export function useMeetingNotes() {
         startInFlight.current = false;
       }
     },
-    [isDailyReviewPending, isRecording, settings.includeMicrophone, settings.language, state]
+    [
+      isDailyReviewPending,
+      isGeneralReviewPending,
+      isRecording,
+      settings.includeMicrophone,
+      settings.language,
+      state
+    ]
   );
 
   const stopRecording = useCallback(async () => {
@@ -489,6 +565,24 @@ export function useMeetingNotes() {
     }
   }, [isPaused, isRecording, settings.language]);
 
+  const setMicrophoneEnabled = useCallback(
+    async (enabled: boolean) => {
+      if (isChangingMicrophone || startInFlight.current) return;
+      setIsChangingMicrophone(true);
+      setError(null);
+      try {
+        if (isRecording) await capture.current.setIncludeMicrophone(enabled);
+        const next = await window.copilot.settings.update({ includeMicrophone: enabled });
+        setSettings(next);
+      } catch (cause) {
+        setError(audioStartErrorMessage(cause, settings.language));
+      } finally {
+        setIsChangingMicrophone(false);
+      }
+    },
+    [isChangingMicrophone, isRecording, settings.language]
+  );
+
   const cancel = useCallback(async () => {
     await capture.current.stop();
     await window.copilot.capture.cancel();
@@ -499,10 +593,74 @@ export function useMeetingNotes() {
     setAudioBackupPath(null);
     setAudioBackupNoticeVisible(false);
     setIsDailyReviewPending(false);
+    setIsGeneralReviewPending(false);
+    setGeneralReviewName("");
+    setGeneralReviewTranscript("");
     dailySegmentsRef.current = [];
     setDailySegments([]);
     setState("idle");
   }, []);
+
+  const discardMeeting = useCallback(async () => {
+    if (isDiscarding) return;
+    setIsDiscarding(true);
+    discardRequestedRef.current = true;
+    if (finalizationTimer.current !== null) {
+      window.clearTimeout(finalizationTimer.current);
+      finalizationTimer.current = null;
+    }
+
+    const discardErrors: string[] = [];
+    try {
+      await capture.current.stop();
+    } catch (cause) {
+      discardErrors.push(cause instanceof Error ? cause.message : "Could not stop audio capture");
+    }
+
+    const cleanupResults = await Promise.allSettled([
+      window.copilot.capture.cancel(),
+      savedPath ? window.copilot.meetingNotes.delete(savedPath) : Promise.resolve()
+    ]);
+    for (const result of cleanupResults) {
+      if (result.status === "rejected") {
+        discardErrors.push(
+          result.reason instanceof Error ? result.reason.message : "Could not delete the meeting"
+        );
+      }
+    }
+
+    const discardError = discardErrors[0] ?? null;
+    try {
+      transcriptRef.current = "";
+      startedAt.current = null;
+      endedAtRef.current = null;
+      finalizationStarted.current = false;
+      dailySegmentsRef.current = [];
+      activeDailySegmentRef.current = 0;
+      setTranscript("");
+      setSummary(null);
+      setSummaryExportReady(false);
+      setSavedPath(null);
+      setSavedNoticeVisible(false);
+      setIsRecording(false);
+      setIsPaused(false);
+      setCaptureMode("live_transcription");
+      setRecordingWarning(null);
+      setAudioBackupPath(null);
+      setAudioBackupNoticeVisible(false);
+      setAudioLevels(EMPTY_AUDIO_LEVELS);
+      setDailySegments([]);
+      setIsDailyReviewPending(false);
+      setGeneralReviewName("");
+      setGeneralReviewTranscript("");
+      setIsGeneralReviewPending(false);
+      setError(discardError);
+      setState(discardError ? "error" : "idle");
+      setIsDiscarding(false);
+    } finally {
+      await refreshSavedNotes();
+    }
+  }, [isDiscarding, refreshSavedNotes, savedPath]);
 
   const retrySavedNote = useCallback(
     async (entry: SavedMeetingNoteEntry) => {
@@ -596,6 +754,7 @@ export function useMeetingNotes() {
         }
       }),
       window.copilot.events.onTranscriptFinal(({ transcript: finalTranscript }) => {
+        if (discardRequestedRef.current) return;
         if (transcriptFrame.current !== null) {
           window.cancelAnimationFrame(transcriptFrame.current);
           transcriptFrame.current = null;
@@ -616,6 +775,7 @@ export function useMeetingNotes() {
         setState("listening");
       }),
       window.copilot.events.onTranscriptionError((message) => {
+        if (discardRequestedRef.current) return;
         setIsRecording(false);
         setIsPaused(false);
         void capture.current.stop();
@@ -668,18 +828,28 @@ export function useMeetingNotes() {
     dailySegments,
     activeDailySegmentIndex: activeDailySegmentRef.current,
     isDailyReviewPending,
+    generalReviewName,
+    generalReviewTranscript,
+    isGeneralReviewPending,
+    isChangingMicrophone,
+    isDiscarding,
     startRecording,
     stopRecording,
     nextDailySpeaker,
     updateDailySegment,
     submitDailySummary,
+    updateGeneralReviewName: setGeneralReviewName,
+    updateGeneralReviewTranscript: setGeneralReviewTranscript,
+    submitGeneralSummary,
     pauseRecording,
     resumeRecording,
+    setMicrophoneEnabled,
     retrySavedNote,
     refreshSavedNotes,
     dismissSavedPath: () => setSavedNoticeVisible(false),
     dismissAudioBackup: () => setAudioBackupNoticeVisible(false),
     cancel,
+    discardMeeting,
     updateSettings
   };
 }

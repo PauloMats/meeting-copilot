@@ -18,7 +18,7 @@ import {
   MeetingTypeSchema,
   simplifyDailyResult
 } from "@meeting-copilot/contracts";
-import { mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 const NoteMetadataSchema = MeetingContextSchema.extend({
@@ -43,6 +43,16 @@ export class MeetingNotesService {
   async update(filePath: string, request: SaveMeetingNoteRequest): Promise<SavedMeetingNote> {
     if (!this.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
     return this.write(filePath, request);
+  }
+
+  async delete(filePath: string): Promise<void> {
+    if (!this.isManagedFile(filePath)) throw new Error("Invalid meeting note path");
+    await Promise.all([
+      rm(filePath, { force: true }),
+      rm(dataFilePathFor(filePath), { force: true }),
+      rm(`${filePath}.tmp`, { force: true }),
+      rm(`${dataFilePathFor(filePath)}.tmp`, { force: true })
+    ]);
   }
 
   private async write(
@@ -115,9 +125,7 @@ function renderMeetingNote(request: SaveMeetingNoteRequest): string {
   const defaultTitle =
     request.meetingType === "daily"
       ? request.meetingName || (portuguese ? "Relatório da Daily" : "Daily status report")
-      : portuguese
-        ? "Ata da reunião"
-        : "Meeting notes";
+      : request.meetingName || (portuguese ? "Ata da reunião" : "Meeting notes");
   const sections = [
     `# ${summary?.title.trim() || defaultTitle}`,
     "",

@@ -64,15 +64,22 @@ Canonical schemas live in `packages/contracts/src`.
    advances to the next person. Capture continues without interruption.
 4. On the second click, media tracks stop and the transcription buffer is committed.
 5. Electron saves a transcript-first Markdown draft under `Documents/Meeting Copilot`.
-6. General Meeting immediately calls `POST /api/meeting-summaries`. Daily instead opens a review
-   where participant names and transcript segments remain editable; no AI request is made yet.
-7. The reviewed Daily is sent only through the explicit `Enviar para IA e resumir` action. Manual
-   speaker segments are treated as authoritative attribution evidence by the structured processor.
+6. General Meeting opens a review with an editable meeting name and transcript. Daily opens its
+   participant-and-segment review. Neither path calls AI automatically.
+7. A reviewed meeting is sent only through the explicit `Enviar para IA e resumir` action. Manual
+   Daily speaker segments are treated as authoritative attribution evidence by the processor.
 8. Electron rewrites the same Markdown file with the validated summary and full transcript. If the
    provider fails, the transcript-first draft remains available.
 9. Meeting type, manual Daily speaker segments, and attribution context are stored in Markdown
    metadata and the JSON sidecar so retrying a saved transcript uses the original processor and
    inputs.
+10. `Cancelar e excluir` requires confirmation, cancels the active capture or pending review, and
+    removes the local Markdown/JSON draft plus any incomplete audio backup.
+
+The WASAPI helper can be restarted with microphone mixing enabled or disabled without closing the
+Realtime transcription session. This creates a short capture gap. System and microphone audio are
+still mixed into one mono stream, so automatic source-specific labels such as `Paulo:` would be
+unreliable; users can add speaker labels manually during review.
 
 ## Retrieval abstraction
 

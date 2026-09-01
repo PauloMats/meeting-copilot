@@ -60,4 +60,41 @@ describe("AudioCapture pause and resume", () => {
     expect(onNativeAudioError).toHaveBeenCalledTimes(1);
     expect(onLevels).toHaveBeenCalledWith({ system: 0, microphone: 0 });
   });
+
+  it("restarts only the native helper when the microphone changes mid-recording", async () => {
+    const start = vi.fn().mockResolvedValue({
+      outputDevice: "JBL Quantum",
+      microphoneDevice: "Notebook microphone"
+    });
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const onNativeAudioChunk = vi.fn().mockReturnValue(vi.fn());
+    const onNativeAudioLevels = vi.fn().mockReturnValue(vi.fn());
+    const onNativeAudioError = vi.fn().mockReturnValue(vi.fn());
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        copilot: {
+          systemAudio: { start, stop },
+          events: {
+            onNativeAudioChunk,
+            onNativeAudioLevels,
+            onNativeAudioError
+          }
+        }
+      }
+    });
+
+    const capture = new AudioCapture();
+    const onLevels = vi.fn();
+    await capture.start(false, vi.fn(), onLevels);
+    await capture.setIncludeMicrophone(true);
+    await capture.stop();
+
+    expect(start).toHaveBeenNthCalledWith(1, false);
+    expect(start).toHaveBeenNthCalledWith(2, true);
+    expect(stop).toHaveBeenCalledTimes(2);
+    expect(onNativeAudioChunk).toHaveBeenCalledTimes(1);
+    expect(onNativeAudioLevels).toHaveBeenCalledTimes(1);
+    expect(onLevels).toHaveBeenCalledWith({ system: 0, microphone: 0 });
+  });
 });

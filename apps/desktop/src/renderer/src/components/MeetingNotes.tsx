@@ -1,5 +1,5 @@
 import type { AudioDevice, MeetingType, SpeakerSegment } from "@meeting-copilot/contracts";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SourcePicker } from "./SourcePicker";
 import { StateIndicator } from "./StateIndicator";
 import { MeetingResultCard } from "./MeetingResultCard";
@@ -14,6 +14,9 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
   const [meetingType, setMeetingType] = useState<MeetingType>("general_meeting");
   const [meetingName, setMeetingName] = useState("");
   const [meetingDate, setMeetingDate] = useState(todayForInput);
+  const [dailyParticipants, setDailyParticipants] = useState(() =>
+    Array.from({ length: 5 }, (_, index) => `Pessoa ${index + 1}`)
+  );
   const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
   const pt = notes.settings.language === "pt";
   const isReviewPending = notes.isDailyReviewPending || notes.isGeneralReviewPending;
@@ -47,12 +50,40 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
     error: pt ? "Atenção" : "Needs attention"
   };
 
+  useEffect(() => {
+    setDailyParticipants((current) =>
+      current.map((participant, index) =>
+        /^(?:Pessoa|Person) \d+$/.test(participant.trim())
+          ? `${pt ? "Pessoa" : "Person"} ${index + 1}`
+          : participant
+      )
+    );
+  }, [pt]);
+
   const handleBack = async () => {
     try {
       await notes.cancel();
     } finally {
       onBack();
     }
+  };
+
+  const updateDailyParticipantCount = (count: number) => {
+    const nextCount = Math.min(30, Math.max(1, Math.round(count) || 1));
+    setDailyParticipants((current) =>
+      Array.from(
+        { length: nextCount },
+        (_, index) => current[index] ?? `${pt ? "Pessoa" : "Person"} ${index + 1}`
+      )
+    );
+  };
+
+  const updateDailyParticipant = (index: number, value: string) => {
+    setDailyParticipants((current) =>
+      current.map((participant, participantIndex) =>
+        participantIndex === index ? value : participant
+      )
+    );
   };
 
   return (
@@ -79,178 +110,161 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
         </div>
       </header>
 
-      <section className="meeting-type-panel">
-        <div className="meeting-type-heading">
-          <div>
-            <p className="eyebrow">{pt ? "TIPO DE REUNIÃO" : "MEETING TYPE"}</p>
-            <h2>
-              {pt
-                ? "Como a IA deve organizar esta conversa?"
-                : "How should AI organize this conversation?"}
-            </h2>
+      {!notes.isRecording && !isReviewPending && (
+        <section className="meeting-type-panel">
+          <div className="meeting-type-heading">
+            <div>
+              <p className="eyebrow">{pt ? "TIPO DE REUNIÃO" : "MEETING TYPE"}</p>
+              <h2>
+                {pt
+                  ? "Como a IA deve organizar esta conversa?"
+                  : "How should AI organize this conversation?"}
+              </h2>
+            </div>
+            <span>{pt ? "Escolha antes de gravar" : "Choose before recording"}</span>
           </div>
-          <span>{pt ? "Escolha antes de gravar" : "Choose before recording"}</span>
-        </div>
-        <div className="meeting-type-options" role="radiogroup">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={meetingType === "general_meeting"}
-            className={meetingType === "general_meeting" ? "is-selected" : ""}
-            disabled={notes.isRecording || isBusy || isReviewPending}
-            onClick={() => setMeetingType("general_meeting")}
-          >
-            <span className="meeting-type-icon" aria-hidden="true">
-              ≡
-            </span>
-            <span>
-              <strong>{pt ? "Reunião geral" : "General meeting"}</strong>
-              <small>
-                {pt
-                  ? "Decisões, tópicos, tarefas, responsáveis e questões em aberto."
-                  : "Decisions, topics, tasks, owners, and open questions."}
-              </small>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={meetingType === "daily"}
-            className={meetingType === "daily" ? "is-selected" : ""}
-            disabled={notes.isRecording || isBusy || isReviewPending}
-            onClick={() => setMeetingType("daily")}
-          >
-            <span className="meeting-type-icon" aria-hidden="true">
-              ↗
-            </span>
-            <span>
-              <strong>{pt ? "Daily / Status do time" : "Daily / Team status"}</strong>
-              <small>
-                {pt
-                  ? "Atualizações individuais, andamento, bloqueios, dependências e próximos passos."
-                  : "Individual updates, progress, blockers, dependencies, and next steps."}
-              </small>
-            </span>
-          </button>
-        </div>
-      </section>
+          <div className="meeting-type-options" role="radiogroup">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={meetingType === "general_meeting"}
+              className={meetingType === "general_meeting" ? "is-selected" : ""}
+              disabled={notes.isRecording || isBusy || isReviewPending}
+              onClick={() => setMeetingType("general_meeting")}
+            >
+              <span className="meeting-type-icon" aria-hidden="true">
+                ≡
+              </span>
+              <span>
+                <strong>{pt ? "Reunião geral" : "General meeting"}</strong>
+                <small>
+                  {pt
+                    ? "Decisões, tópicos, tarefas, responsáveis e questões em aberto."
+                    : "Decisions, topics, tasks, owners, and open questions."}
+                </small>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={meetingType === "daily"}
+              className={meetingType === "daily" ? "is-selected" : ""}
+              disabled={notes.isRecording || isBusy || isReviewPending}
+              onClick={() => setMeetingType("daily")}
+            >
+              <span className="meeting-type-icon" aria-hidden="true">
+                ↗
+              </span>
+              <span>
+                <strong>{pt ? "Daily / Status do time" : "Daily / Team status"}</strong>
+                <small>
+                  {pt
+                    ? "Atualizações individuais, andamento, bloqueios, dependências e próximos passos."
+                    : "Individual updates, progress, blockers, dependencies, and next steps."}
+                </small>
+              </span>
+            </button>
+          </div>
+        </section>
+      )}
 
-      {meetingType === "daily" && (
+      {meetingType === "daily" && !notes.isRecording && !isReviewPending && (
         <DailyConfiguration
           portuguese={pt}
           disabled={notes.isRecording || isBusy || isReviewPending}
           meetingName={meetingName}
           meetingDate={meetingDate}
+          participants={dailyParticipants}
           onMeetingNameChange={setMeetingName}
           onMeetingDateChange={setMeetingDate}
+          onParticipantCountChange={updateDailyParticipantCount}
+          onParticipantChange={updateDailyParticipant}
         />
       )}
 
-      <section className="control-panel notes-controls">
-        <SourcePicker
-          label={pt ? "Saída de áudio do Windows" : "Windows audio output"}
-          disabled={notes.isRecording || isBusy || isReviewPending}
-          requireExplicitSelection
-          emptyLabel={pt ? "Selecione o dispositivo…" : "Select the output device…"}
-          unavailableLabel={pt ? "Nenhuma saída de áudio encontrada" : "No audio output found"}
-          onSelectionChange={setSelectedSource}
-        />
-        <label className="field">
-          {pt ? "Idioma" : "Language"}
-          <select
-            value={notes.settings.language}
-            disabled={notes.isRecording || isReviewPending}
-            onChange={(event) => void notes.updateSettings({ language: event.target.value })}
-          >
-            {languages.map((language) => (
-              <option key={language.value} value={language.value}>
-                {language.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          {pt ? "Inteligência" : "Intelligence"}
-          <select
-            value={notes.settings.intelligenceLevel}
-            disabled={notes.isRecording || isReviewPending}
-            onChange={(event) =>
-              void notes.updateSettings({
-                intelligenceLevel: event.target.value as typeof notes.settings.intelligenceLevel
-              })
-            }
-          >
-            <option value="basic">{pt ? "Básica" : "Basic"}</option>
-            <option value="balanced">{pt ? "Balanceada" : "Balanced"}</option>
-            <option value="advanced">{pt ? "Avançada" : "Advanced"}</option>
-          </select>
-        </label>
-        <label className="switch">
-          <input
-            type="checkbox"
-            disabled={notes.isChangingMicrophone || isReviewPending || isBusy}
-            checked={notes.settings.includeMicrophone}
-            onChange={(event) => void notes.setMicrophoneEnabled(event.target.checked)}
+      <section
+        className="capture-setup-panel"
+        aria-label={pt ? "Áudio e ajustes" : "Audio and settings"}
+      >
+        <div className="capture-device-row">
+          <SourcePicker
+            label={pt ? "Saída" : "Output"}
+            disabled={notes.isRecording || isBusy || isReviewPending}
+            requireExplicitSelection
+            emptyLabel={pt ? "Selecione o dispositivo…" : "Select the output device…"}
+            unavailableLabel={pt ? "Nenhuma saída encontrada" : "No output found"}
+            onSelectionChange={setSelectedSource}
           />
-          {notes.isChangingMicrophone
-            ? pt
-              ? "Alterando microfone…"
-              : "Changing microphone…"
-            : pt
-              ? "Incluir microfone"
-              : "Include microphone"}
-        </label>
-      </section>
-
-      {!selectedSource && (
-        <p className="source-selection-hint">
-          {pt
-            ? "Selecione a mesma saída usada pelo Teams, Discord ou navegador — por exemplo, JBL Quantum Game ou Chat."
-            : "Select the same output used by Teams, Discord, or your browser — for example, JBL Quantum Game or Chat."}
-        </p>
-      )}
-
-      <section className="audio-monitor" aria-label={pt ? "Monitor de áudio" : "Audio monitor"}>
-        <div className="audio-monitor-heading">
-          <div>
-            <span>{pt ? "ENTRADAS DE ÁUDIO" : "AUDIO INPUTS"}</span>
-            <strong>
-              {selectedSource
-                ? selectedSource.name
-                : pt
-                  ? "Saída ainda não selecionada"
-                  : "No output selected yet"}
-            </strong>
-          </div>
-          <small>
-            {notes.isPaused
+          <label className="switch compact-switch">
+            <input
+              type="checkbox"
+              disabled={notes.isChangingMicrophone || isReviewPending || isBusy}
+              checked={notes.settings.includeMicrophone}
+              onChange={(event) => void notes.setMicrophoneEnabled(event.target.checked)}
+            />
+            {notes.isChangingMicrophone
               ? pt
-                ? "Captura pausada"
-                : "Capture paused"
-              : notes.isRecording
-                ? pt
-                  ? "Monitorando em tempo real"
-                  : "Monitoring in real time"
-                : pt
-                  ? "Os níveis aparecem ao iniciar"
-                  : "Levels appear when recording starts"}
-          </small>
+                ? "Alterando…"
+                : "Changing…"
+              : pt
+                ? "Microfone"
+                : "Microphone"}
+          </label>
+          <div className="compact-audio-levels">
+            <AudioLevelMeter
+              label={pt ? "Áudio do PC" : "System audio"}
+              level={notes.audioLevels.system}
+              active={notes.isRecording && !notes.isPaused}
+              enabled={Boolean(selectedSource)}
+              pt={pt}
+            />
+            <AudioLevelMeter
+              label={pt ? "Microfone" : "Microphone"}
+              level={notes.audioLevels.microphone ?? 0}
+              active={notes.isRecording && !notes.isPaused}
+              enabled={notes.settings.includeMicrophone}
+              pt={pt}
+            />
+          </div>
         </div>
-        <div className="audio-meter-grid">
-          <AudioLevelMeter
-            label={pt ? "Áudio do PC" : "System audio"}
-            level={notes.audioLevels.system}
-            active={notes.isRecording && !notes.isPaused}
-            enabled={Boolean(selectedSource)}
-            pt={pt}
-          />
-          <AudioLevelMeter
-            label={pt ? "Microfone" : "Microphone"}
-            level={notes.audioLevels.microphone ?? 0}
-            active={notes.isRecording && !notes.isPaused}
-            enabled={notes.settings.includeMicrophone}
-            pt={pt}
-          />
+        <div className="capture-settings-row">
+          <span className="capture-device-status">
+            {selectedSource
+              ? selectedSource.name
+              : pt
+                ? "Escolha a mesma saída usada na reunião"
+                : "Choose the same output used by the meeting"}
+          </span>
+          <label className="field compact-field">
+            {pt ? "Idioma" : "Language"}
+            <select
+              value={notes.settings.language}
+              disabled={notes.isRecording || isReviewPending}
+              onChange={(event) => void notes.updateSettings({ language: event.target.value })}
+            >
+              {languages.map((language) => (
+                <option key={language.value} value={language.value}>
+                  {language.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field compact-field">
+            {pt ? "IA" : "AI"}
+            <select
+              value={notes.settings.intelligenceLevel}
+              disabled={notes.isRecording || isReviewPending}
+              onChange={(event) =>
+                void notes.updateSettings({
+                  intelligenceLevel: event.target.value as typeof notes.settings.intelligenceLevel
+                })
+              }
+            >
+              <option value="basic">{pt ? "Básica" : "Basic"}</option>
+              <option value="balanced">{pt ? "Balanceada" : "Balanced"}</option>
+              <option value="advanced">{pt ? "Avançada" : "Advanced"}</option>
+            </select>
+          </label>
         </div>
       </section>
 
@@ -337,7 +351,8 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
               <div className="active-daily-speaker">
                 <span>{pt ? "FALANDO AGORA" : "SPEAKING NOW"}</span>
                 <strong>
-                  {pt ? "Pessoa" : "Person"} {notes.activeDailySegmentIndex + 1}
+                  {notes.dailySegments[notes.activeDailySegmentIndex]?.participant ||
+                    `${pt ? "Pessoa" : "Person"} ${notes.activeDailySegmentIndex + 1}`}
                 </strong>
               </div>
             )}
@@ -348,10 +363,7 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
             meetingType === "daily" && (
               <button
                 className="secondary next-speaker-button"
-                disabled={
-                  notes.isPaused ||
-                  !notes.dailySegments[notes.activeDailySegmentIndex]?.transcript.trim()
-                }
+                disabled={notes.isPaused || notes.activeDailySegmentIndex >= 29}
                 onClick={notes.nextDailySpeaker}
               >
                 {pt ? "Próxima pessoa" : "Next person"} →
@@ -378,7 +390,13 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                     meetingType,
                     meetingName: meetingName.trim(),
                     meetingDate: meetingDate.trim(),
-                    orderedParticipants: [],
+                    orderedParticipants:
+                      meetingType === "daily"
+                        ? dailyParticipants.map(
+                            (participant, index) =>
+                              participant.trim() || `${pt ? "Pessoa" : "Person"} ${index + 1}`
+                          )
+                        : [],
                     speakerHints: [],
                     speakerSegments: []
                   }))
@@ -611,19 +629,34 @@ export function MeetingNotes({ onBack }: { onBack: () => void }) {
                   : "Audio is not saved"}
             </span>
           </div>
-          <textarea
-            readOnly
-            value={notes.transcript}
-            placeholder={
-              notes.captureMode === "audio_backup"
-                ? pt
-                  ? "Transcrição indisponível sem créditos. O áudio continuará sendo gravado."
-                  : "Transcription is unavailable without credits. Audio recording will continue."
-                : pt
-                  ? "A conversa transcrita aparecerá aqui…"
-                  : "The transcribed conversation will appear here…"
-            }
-          />
+          {meetingType === "daily" && notes.dailySegments.length ? (
+            <DailyLiveTranscript
+              portuguese={pt}
+              segments={notes.dailySegments}
+              activeIndex={notes.activeDailySegmentIndex}
+              recording={notes.isRecording}
+              paused={notes.isPaused}
+              backupMode={notes.captureMode === "audio_backup"}
+              onSelect={notes.selectDailySpeaker}
+              onNameChange={(index, participant) =>
+                notes.updateDailySegment(index, { participant })
+              }
+            />
+          ) : (
+            <textarea
+              readOnly
+              value={notes.transcript}
+              placeholder={
+                notes.captureMode === "audio_backup"
+                  ? pt
+                    ? "Transcrição indisponível sem créditos. O áudio continuará sendo gravado."
+                    : "Transcription is unavailable without credits. Audio recording will continue."
+                  : pt
+                    ? "A conversa transcrita aparecerá aqui…"
+                    : "The transcribed conversation will appear here…"
+              }
+            />
+          )}
         </div>
         <div className="answer-panel notes-summary">
           {notes.summary ? (
@@ -691,15 +724,21 @@ function DailyConfiguration({
   disabled,
   meetingName,
   meetingDate,
+  participants,
   onMeetingNameChange,
-  onMeetingDateChange
+  onMeetingDateChange,
+  onParticipantCountChange,
+  onParticipantChange
 }: {
   portuguese: boolean;
   disabled: boolean;
   meetingName: string;
   meetingDate: string;
+  participants: string[];
   onMeetingNameChange: (value: string) => void;
   onMeetingDateChange: (value: string) => void;
+  onParticipantCountChange: (count: number) => void;
+  onParticipantChange: (index: number, value: string) => void;
 }) {
   return (
     <section className="daily-configuration">
@@ -714,8 +753,8 @@ function DailyConfiguration({
         </div>
         <small>
           {portuguese
-            ? "Começa em Pessoa 1. Use “Próxima pessoa” durante a gravação e informe os nomes na revisão."
-            : "Starts at Person 1. Use “Next person” while recording, then enter names during review."}
+            ? "Defina a ordem agora. Os nomes continuam editáveis durante a gravação e na revisão."
+            : "Set the order now. Names remain editable while recording and during review."}
         </small>
       </div>
       <div className="daily-fields">
@@ -738,8 +777,149 @@ function DailyConfiguration({
             onChange={(event) => onMeetingDateChange(event.target.value)}
           />
         </label>
+        <label className="daily-field daily-count-field">
+          <span>{portuguese ? "Pessoas" : "People"}</span>
+          <div className="participant-stepper">
+            <button
+              type="button"
+              className="secondary"
+              disabled={disabled || participants.length <= 1}
+              aria-label={portuguese ? "Remover uma pessoa" : "Remove one person"}
+              onClick={() => onParticipantCountChange(participants.length - 1)}
+            >
+              −
+            </button>
+            <output>{participants.length}</output>
+            <button
+              type="button"
+              className="secondary"
+              disabled={disabled || participants.length >= 30}
+              aria-label={portuguese ? "Adicionar uma pessoa" : "Add one person"}
+              onClick={() => onParticipantCountChange(participants.length + 1)}
+            >
+              +
+            </button>
+          </div>
+        </label>
+      </div>
+      <div
+        className="planned-participants"
+        aria-label={portuguese ? "Ordem de fala" : "Speaking order"}
+      >
+        {participants.map((participant, index) => (
+          <label className="planned-participant" key={index}>
+            <span>{index + 1}</span>
+            <input
+              value={participant}
+              disabled={disabled}
+              maxLength={120}
+              aria-label={`${portuguese ? "Nome da pessoa" : "Person name"} ${index + 1}`}
+              placeholder={`${portuguese ? "Pessoa" : "Person"} ${index + 1}`}
+              onChange={(event) => onParticipantChange(index, event.target.value)}
+            />
+          </label>
+        ))}
       </div>
     </section>
+  );
+}
+
+function DailyLiveTranscript({
+  portuguese,
+  segments,
+  activeIndex,
+  recording,
+  paused,
+  backupMode,
+  onSelect,
+  onNameChange
+}: {
+  portuguese: boolean;
+  segments: SpeakerSegment[];
+  activeIndex: number;
+  recording: boolean;
+  paused: boolean;
+  backupMode: boolean;
+  onSelect: (index: number) => void;
+  onNameChange: (index: number, participant: string) => void;
+}) {
+  const activeTranscript = segments[activeIndex]?.transcript ?? "";
+  const activeTranscriptRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const viewport = activeTranscriptRef.current;
+    if (viewport) viewport.scrollTop = viewport.scrollHeight;
+  }, [activeIndex, activeTranscript]);
+
+  return (
+    <div className="daily-live-list">
+      {segments.map((segment, index) => {
+        const active = index === activeIndex;
+        const displayName =
+          segment.participant.trim() || `${portuguese ? "Pessoa" : "Person"} ${index + 1}`;
+        return (
+          <article
+            className={`daily-live-card ${active ? "is-active" : "is-collapsed"}`}
+            key={segment.position}
+          >
+            <div className="daily-live-card-header">
+              <button
+                type="button"
+                className="daily-speaker-selector"
+                disabled={!recording || paused}
+                aria-expanded={active}
+                onClick={() => onSelect(index)}
+              >
+                <span className="daily-speaker-number">{index + 1}</span>
+                <span className="daily-speaker-state">
+                  <strong>{displayName}</strong>
+                  <small>
+                    {active && recording
+                      ? paused
+                        ? portuguese
+                          ? "Pausada"
+                          : "Paused"
+                        : portuguese
+                          ? "Falando agora"
+                          : "Speaking now"
+                      : segment.transcript.trim()
+                        ? portuguese
+                          ? "Trecho registrado"
+                          : "Segment captured"
+                        : portuguese
+                          ? "Aguardando"
+                          : "Waiting"}
+                  </small>
+                </span>
+              </button>
+              <input
+                value={segment.participant}
+                disabled={!recording}
+                maxLength={120}
+                aria-label={`${portuguese ? "Nome da pessoa" : "Person name"} ${index + 1}`}
+                placeholder={`${portuguese ? "Pessoa" : "Person"} ${index + 1}`}
+                onChange={(event) => onNameChange(index, event.target.value)}
+              />
+              <span className="daily-card-chevron" aria-hidden="true">
+                {active ? "⌃" : "⌄"}
+              </span>
+            </div>
+            {active && (
+              <div className="daily-live-transcript" ref={activeTranscriptRef} aria-live="polite">
+                {backupMode
+                  ? portuguese
+                    ? "A transcrição ao vivo está indisponível. O áudio continua sendo salvo localmente."
+                    : "Live transcription is unavailable. Audio continues to be saved locally."
+                  : segment.transcript ||
+                    (portuguese
+                      ? `A fala de ${displayName} aparecerá aqui…`
+                      : `${displayName}'s speech will appear here…`)}
+              </div>
+            )}
+          </article>
+        );
+      })}
+    </div>
   );
 }
 

@@ -18,6 +18,7 @@ import {
 } from "../lib/audio-capture";
 import {
   appendSegmentDelta,
+  createPlannedSpeakerSegments,
   createSpeakerSegment,
   prepareSpeakerSegments,
   reconcileFinalTranscript,
@@ -170,10 +171,12 @@ export function useMeetingNotes() {
         return;
       }
 
-      const reconciled = reconcileFinalTranscript(dailySegmentsRef.current, value)
-        .map((segment) => ({ ...segment, transcript: segment.transcript.trim() }))
-        .filter((segment) => Boolean(segment.transcript));
-      const reviewSegments = reconciled.length
+      const reconciled = reconcileFinalTranscript(
+        dailySegmentsRef.current,
+        value,
+        activeDailySegmentRef.current
+      ).map((segment) => ({ ...segment, transcript: segment.transcript.trim() }));
+      const reviewSegments = reconciled.some((segment) => Boolean(segment.transcript))
         ? reconciled.map((segment, index) => ({ ...segment, position: index + 1 }))
         : [{ ...createSpeakerSegment(1), transcript: trimmed }];
       const endedAt = new Date().toISOString();
@@ -411,7 +414,9 @@ export function useMeetingNotes() {
       startedAt.current = new Date().toISOString();
       endedAtRef.current = null;
       const initialDailySegments =
-        meetingSetup.meetingType === "daily" ? [createSpeakerSegment(1)] : [];
+        meetingSetup.meetingType === "daily"
+          ? createPlannedSpeakerSegments(meetingSetup.orderedParticipants)
+          : [];
       dailySegmentsRef.current = initialDailySegments;
       activeDailySegmentRef.current = 0;
       setDailySegments(initialDailySegments);
@@ -519,28 +524,51 @@ export function useMeetingNotes() {
     ) {
       return;
     }
-    const active = dailySegmentsRef.current[activeDailySegmentRef.current];
-    if (!active?.transcript.trim()) return;
+    const nextIndex = activeDailySegmentRef.current + 1;
+    if (nextIndex < dailySegmentsRef.current.length) {
+      activeDailySegmentRef.current = nextIndex;
+      setDailySegments([...dailySegmentsRef.current]);
+      return;
+    }
 
-    const next = [
-      ...dailySegmentsRef.current,
-      createSpeakerSegment(dailySegmentsRef.current.length + 1)
-    ];
+    const next = [...dailySegmentsRef.current, createSpeakerSegment(nextIndex + 1)];
     dailySegmentsRef.current = next;
-    activeDailySegmentRef.current = next.length - 1;
+    activeDailySegmentRef.current = nextIndex;
     setDailySegments(next);
   }, [isRecording]);
 
+  const selectDailySpeaker = useCallback(
+    (index: number) => {
+      if (
+        !isRecording ||
+        isPaused ||
+        meetingSetupRef.current.meetingType !== "daily" ||
+        !dailySegmentsRef.current[index]
+      ) {
+        return;
+      }
+      activeDailySegmentRef.current = index;
+      setDailySegments([...dailySegmentsRef.current]);
+    },
+    [isPaused, isRecording]
+  );
+
   const updateDailySegment = useCallback(
     (index: number, patch: Partial<Pick<SpeakerSegment, "participant" | "transcript">>) => {
-      if (!isDailyReviewPending) return;
+      if (!isDailyReviewPending && !isRecording) return;
       const next = dailySegmentsRef.current.map((segment, segmentIndex) =>
         segmentIndex === index ? { ...segment, ...patch } : segment
       );
       dailySegmentsRef.current = next;
       setDailySegments(next);
+      if (patch.participant !== undefined) {
+        meetingSetupRef.current = {
+          ...meetingSetupRef.current,
+          orderedParticipants: next.map((segment) => segment.participant)
+        };
+      }
     },
-    [isDailyReviewPending]
+    [isDailyReviewPending, isRecording]
   );
 
   const pauseRecording = useCallback(async () => {
@@ -836,6 +864,7 @@ export function useMeetingNotes() {
     startRecording,
     stopRecording,
     nextDailySpeaker,
+    selectDailySpeaker,
     updateDailySegment,
     submitDailySummary,
     updateGeneralReviewName: setGeneralReviewName,

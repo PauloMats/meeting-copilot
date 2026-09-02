@@ -1,11 +1,16 @@
 import type { SpeakerSegment } from "@meeting-copilot/contracts";
 
-export function createSpeakerSegment(position: number): SpeakerSegment {
+export function createSpeakerSegment(position: number, participant = ""): SpeakerSegment {
   return {
     position,
-    participant: "",
+    participant,
     transcript: ""
   };
+}
+
+export function createPlannedSpeakerSegments(participants: string[]): SpeakerSegment[] {
+  const planned = participants.length ? participants : [""];
+  return planned.map((participant, index) => createSpeakerSegment(index + 1, participant.trim()));
 }
 
 export function appendSegmentDelta(
@@ -21,7 +26,8 @@ export function appendSegmentDelta(
 
 export function reconcileFinalTranscript(
   segments: SpeakerSegment[],
-  finalTranscript: string
+  finalTranscript: string,
+  activeIndex = segments.length - 1
 ): SpeakerSegment[] {
   const current = segments.length ? segments : [createSpeakerSegment(1)];
   const streamed = current.map((segment) => segment.transcript).join("");
@@ -30,8 +36,8 @@ export function reconcileFinalTranscript(
     return [{ ...first, transcript: finalTranscript }, ...current.slice(1)];
   }
   if (finalTranscript.startsWith(streamed) && finalTranscript.length > streamed.length) {
-    const lastIndex = current.length - 1;
-    return appendSegmentDelta(current, lastIndex, finalTranscript.slice(streamed.length));
+    const targetIndex = current[activeIndex] ? activeIndex : current.length - 1;
+    return appendSegmentDelta(current, targetIndex, finalTranscript.slice(streamed.length));
   }
   return current;
 }
